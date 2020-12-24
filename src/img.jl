@@ -46,11 +46,15 @@ end
 
 imneg(img) = 1 .- img
 
-compimg(img::Array{T,2}, component::Component) where {T} =
-    max.(imneg(component.mask), imgslice(img, component.bbox))
+#image(img::Array{T,2}, component::Component) where {T} =
+#    max.(imneg(component.mask), imgslice(img, component.bbox))
+
+image(img::Array{T,2}, c::Component) where {T} =
+    coloralpha.(imgslice(img, c.bbox), c.mask)
+
 
 compmosaic(img, components::Array{Component,1}; kwargs...) =
-    mosaicview([compimg(img, c) for c in components]; kwargs...)
+    mosaicview([image(img, c) for c in components]; kwargs...)
 
 function opening_n!(img, n)
     for i in 1:n; dilate!(img); end
