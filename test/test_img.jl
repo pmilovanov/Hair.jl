@@ -1,28 +1,19 @@
 using Images, ImageView
 using Hair
 
+using Test
+using LinearAlgebra
 
+const GA = GrayA
+@testset "component image ops" begin
+    img = Gray.(reshape(Vector(1:100), (10, 10)) ./ 100)
+    component_mask = Matrix(1.0I, 3, 3)  # 3x3 identity mtx
 
+    component = Hair.Component(1, 3, [(3,3), (5,5)], component_mask)
+    
+    compimg = [GA(0.23, 1.0)  GA(0.33, 0.0)  GA(0.43, 0.0)
+               GA(0.24, 0.0)  GA(0.34, 1.0)  GA(0.44, 0.0)
+               GA(0.25, 0.0)  GA(0.35, 0.0)  GA(0.45, 1.0)]
 
-imneg(img) = 1 .- img
-
-hairmos(img, i, ncolumns) = imshow(1 .- Hair.compmosaic(
-    1 .- img,
-    comps[i:(i+ncolumns*ncolumns-1)],
-    ncol = ncolumns,
-    nrow = ncolumns,
-    fillvalue = Gray{N0f8}(0.0)
-))
-
-img = load(ENV["HOME"] * "/data/hair/scratch/cropped.png")
-#img= load(ENV["HOME"] * "/data/hair/scans/out0014.png")
-#img = img0
-
-mask95 = (img .< 0.9)
-#mask95_o = diameter_opening(mask95, min_diameter=20)
-
-
-comps = Hair.components(mask95, minarea=50)[2:end]
-
-
-hairmos(img, 3, 5)
+    @test Hair.image(img, component) == compimg
+end
