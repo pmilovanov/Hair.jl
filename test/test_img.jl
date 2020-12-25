@@ -5,6 +5,7 @@ using Test
 using LinearAlgebra
 
 const GA = GrayA
+
 @testset "component image ops" begin
     img = Gray.(reshape(Vector(1:100), (10, 10)) ./ 100)
     component_mask = Matrix(1.0I, 3, 3)  # 3x3 identity mtx

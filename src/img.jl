@@ -1,9 +1,15 @@
-using Images, ImageDraw
+using Images, ImageDraw, MosaicViews
 import Base.isless
-using MosaicViews
 
-# Bounding box
+"Bounding box"
 const BBox = Array{Tuple{Int64,Int64},1}
+x1(b::BBox) = b[1][1]
+y1(b::BBox) = b[1][2]
+x2(b::BBox) = b[2][1]
+y2(b::BBox) = b[2][1]
+
+const Image{T} = Array{T, 2} where {T}
+const ImageMask = BitArray{2}
 
 struct Component
     index::Int
@@ -12,58 +18,58 @@ struct Component
     mask::BitArray{2}
 end
 
-function boxpoly(c::Component)
-    (x0, y0), (x1, y1) = c.bbox
-    Polygon([Point(x0, y0), Point(x0, y1), Point(x1, y1), Point(x1, y0)])
-end
+"Make a polygon out of a bounding box produced by functions like `label_components(...)`"
+boxpoly(b::BBox) = Polygon([
+    Point(x1(b), y1(b)),
+    Point(x1(b), y2(b)),
+    Point(x2(b), y2(b)),
+    Point(x2(b), y1(b))
+])
+boxpoly(c::Component) = boxpoly.bbox
 
-function area(box::BBox)
-    (x0, y0), (x1, y1) = box
-    abs((x1 - x0) * (y1 - y0))
-end
+area(b::BBox) = abs((x2(b) - x1(b)) * (y2(b) - y1(b)))
 
 Base.isless(x::Component, y::Component) = area(x.bbox) < area(y.bbox)
 
 
-function imgslice(img, bbox::BBox)
-    (x0, y0), (x1, y1) = bbox
-    img[x0:x1, y0:y1]
-end
+imgslice(img::Image{T}, b::BBox) where {T} = img[x1(b):x2(b), y1(b):y2(b)]
 
-function components(img::BitArray{2}; minarea::Int=0)
+function components(img::ImageMask; minarea::Int = 0)
     cc = label_components(img)
     lengths = component_lengths(cc)
     boxes = component_boxes(cc)
     results = sort(
         [
-            Component(i, len_i, box_i, imgslice(cc, box_i) .== i-1)
-            for (i, (len_i, box_i)) in enumerate(zip(lengths, boxes))
-            if len_i > minarea
+            Component(i, len_i, box_i, imgslice(cc, box_i) .== i - 1)
+            for
+            (i, (len_i, box_i)) in enumerate(zip(lengths, boxes)) if len_i > minarea
         ],
         rev = true,
     )[2:end]
 end
 
-imneg(img) = 1 .- img
+imneg(img::Image{T}) where {T} = 1 .- img
 
 #image(img::Array{T,2}, component::Component) where {T} =
 #    max.(imneg(component.mask), imgslice(img, component.bbox))
 
-image(img::Array{T,2}, c::Component) where {T} =
-    coloralpha.(imgslice(img, c.bbox), c.mask)
+image(img::Image{T}, c::Component) where {T} = coloralpha.(imgslice(img, c.bbox), Gray.(c.mask))
 
-
-compmosaic(img, components::Array{Component,1}; kwargs...) =
+compmosaic(img::Image{T}, components::Array{Component,1}; kwargs...) where {T} =
     mosaicview([image(img, c) for c in components]; kwargs...)
 
-function opening_n!(img, n)
-    for i in 1:n; dilate!(img); end
-    for i in 1:n; erode!(img); end
+function opening_n!(img::Image{T}, n::Int) where {T}
+    for i = 1:n
+        dilate!(img)
+    end
+    for i = 1:n
+        erode!(img)
+    end
 end
 
-const K = Kernel
-function anglegrad(img::Array{T, 2}, angle::Float64) where {T}
-    gx,gy = imgradients(img, K.ando5)
-    cos(angle).*gx + sin(angle).*gy
+"Gradient of an image in the direction specified by the angle θ"
+function anglegrad(img::Array{T,2}, θ::Float64) where {T}
+    gx, gy = imgradients(img, Kernel.ando5)
+    cos(θ) .* gx + sin(θ) .* gy
 end
-    
+
