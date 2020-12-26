@@ -12,7 +12,7 @@ hairmos(img, comps, i, ncolumns) = imshow(Hair.compmosaic(
     comps[i:(i+ncolumns*ncolumns-1)],
     ncol = ncolumns,
     nrow = ncolumns,
-    fillvalue = Gray{N0f8}(0.0)
+    fillvalue = Gray{N0f8}(1.0)
 ))
 
 img = load(ENV["HOME"] * "/data/hair/scratch/cropped.png")

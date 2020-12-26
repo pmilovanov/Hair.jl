@@ -3,12 +3,13 @@ import Base.isless
 
 "Bounding box"
 const BBox = Array{Tuple{Int64,Int64},1}
+bbox(x1, y1, x2, y2) = [(x1, y1), (x2, y2)]
 x1(b::BBox) = b[1][1]
 y1(b::BBox) = b[1][2]
 x2(b::BBox) = b[2][1]
 y2(b::BBox) = b[2][2]
 
-const Image{T} = Array{T, 2} where {T}
+const Image{T} = Array{T,2} where {T}
 const ImageMask = BitArray{2}
 
 struct Component
@@ -23,7 +24,7 @@ boxpoly(b::BBox) = Polygon([
     Point(x1(b), y1(b)),
     Point(x1(b), y2(b)),
     Point(x2(b), y2(b)),
-    Point(x2(b), y1(b))
+    Point(x2(b), y1(b)),
 ])
 boxpoly(c::Component) = boxpoly.bbox
 
@@ -73,3 +74,42 @@ function anglegrad(img::Array{T,2}, θ::Float64) where {T}
     cos(θ) .* gx + sin(θ) .* gy
 end
 
+
+function srcdestboxes(
+    srcsize::Tuple{Int,Int},
+    destsize::Tuple{Int,Int},
+    topleft::Tuple{Int,Int},
+)
+    @assert all(srcsize .> 0)
+    @assert all(destsize .> 0)
+    
+    btmright = topleft .+ srcsize
+    if any(btmright .< 1) || any(btmright .> destsize)
+        return [(0, 0), (0, 0)], [(0, 0), (0, 0)]
+    end
+
+    real_btmright = min.(destsize, btmright)
+    real_topleft = max.((1, 1), topleft)
+
+    destbox = [real_topleft, real_btmright]
+    srcbox = [real_topleft .- topleft .+ (1, 1), real_btmright .- topleft .+ (1, 1)]
+
+    srcbox, destbox
+end
+
+"""
+Place image `img` on top of image `dest` with `img`'s top left corner at location `(x,y)`
+relative to the destination image.
+
+- Returned image's size is the same as the destination image and has the same color type.
+- `img` has alpha channel (transparency), `dest` does not.
+- `img`'s non-transparent color type must be convertible to `dest`'s color type.
+"""
+function place(
+    img::Image{Transparent3{T}},
+    dest::Image{Color3{T}},
+    x::Int,
+    y::Int,
+) where {T}
+
+end
