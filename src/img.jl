@@ -6,7 +6,7 @@ const BBox = Array{Tuple{Int64,Int64},1}
 x1(b::BBox) = b[1][1]
 y1(b::BBox) = b[1][2]
 x2(b::BBox) = b[2][1]
-y2(b::BBox) = b[2][1]
+y2(b::BBox) = b[2][2]
 
 const Image{T} = Array{T, 2} where {T}
 const ImageMask = BitArray{2}
@@ -53,7 +53,7 @@ imneg(img::Image{T}) where {T} = 1 .- img
 #image(img::Array{T,2}, component::Component) where {T} =
 #    max.(imneg(component.mask), imgslice(img, component.bbox))
 
-image(img::Image{T}, c::Component) where {T} = coloralpha.(imgslice(img, c.bbox), Gray.(c.mask))
+image(img::Image{T}, c::Component) where {T} = coloralpha.(imgslice(img, c.bbox), c.mask)
 
 compmosaic(img::Image{T}, components::Array{Component,1}; kwargs...) where {T} =
     mosaicview([image(img, c) for c in components]; kwargs...)

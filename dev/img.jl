@@ -6,8 +6,9 @@ using Hair
 
 imneg(img) = 1 .- img
 
-hairmos(img, i, ncolumns) = imshow(1 .- Hair.compmosaic(
-    1 .- img,
+
+hairmos(img, comps, i, ncolumns) = imshow(Hair.compmosaic(
+    img,
     comps[i:(i+ncolumns*ncolumns-1)],
     ncol = ncolumns,
     nrow = ncolumns,
@@ -25,4 +26,4 @@ mask95 = (img .< 0.9)
 comps = Hair.components(mask95, minarea=50)[2:end]
 
 
-hairmos(img, 3, 5)
+hairmos(img, comps, 3, 5)
