@@ -41,15 +41,23 @@ end
 end
 
 
+zeroboxes = (bbox(0, 0, 0, 0), bbox(0, 0, 0, 0))
 
-@testset "place" begin
-
-    @test H.srcdestboxes((0, 0), (0, 0), (0, 0)) == (bbox(0, 0, 0, 0), bbox(0, 0, 0, 0))
-    
+@testset "place" begin    
     @test_throws AssertionError H.srcdestboxes((-1, 5), (5, 5), (1, 1))
     @test_throws AssertionError H.srcdestboxes((5, 0), (1, 1), (0, 0))
     @test_throws AssertionError H.srcdestboxes((5, 5), (-5, 1), (5, 5))
     @test_throws AssertionError H.srcdestboxes((9, 5), (2, 0), (5, 5))
     @test_throws AssertionError H.srcdestboxes((-1, -1), (-1, -1), (5, 5))
-    @test_throws AssertionError H.srcdestboxes((0, 0), (0, 0), (0, 0))    
+    @test_throws AssertionError H.srcdestboxes((0, 0), (0, 0), (0, 0))
+    
+    @test H.srcdestboxes((200, 100), (2000, 1000), (-300, -300)) ==
+        (bbox(301, 301, 300, 300), bbox(1, 1, 0, 0))
+    @test H.srcdestboxes((200, 100), (2000, 1000), (-200, -100)) ==
+        (bbox(201, 101, 200, 100), bbox(1, 1, 0, 0))
+
+    
+    # @test H.srcdestboxes((200, 100), (2000, 1000), (-199, -99)) |> size == (0,0)
+    # @test H.srcdestboxes((200, 100), (2000, 1000), (2001, 1001)) |> size == (0,0)
+    # @test H.srcdestboxes((200, 100), (2000, 1000), (3000, 3000)) |> size == (0,0)
 end

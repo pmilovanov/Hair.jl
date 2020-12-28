@@ -1,5 +1,11 @@
-using Images, ImageDraw, MosaicViews
+using Images, MosaicViews
 import Base.isless
+import ImageDraw
+
+const IDr = ImageDraw
+
+
+
 
 "Bounding box"
 const BBox = Array{Tuple{Int64,Int64},1}
@@ -20,11 +26,11 @@ struct Component
 end
 
 "Make a polygon out of a bounding box produced by functions like `label_components(...)`"
-boxpoly(b::BBox) = Polygon([
-    Point(x1(b), y1(b)),
-    Point(x1(b), y2(b)),
-    Point(x2(b), y2(b)),
-    Point(x2(b), y1(b)),
+boxpoly(b::BBox) = IDr.Polygon([
+    IDr.Point(x1(b), y1(b)),
+    IDr.Point(x1(b), y2(b)),
+    IDr.Point(x2(b), y2(b)),
+    IDr.Point(x2(b), y1(b)),
 ])
 boxpoly(c::Component) = boxpoly.bbox
 
@@ -74,6 +80,13 @@ function anglegrad(img::Array{T,2}, θ::Float64) where {T}
     cos(θ) .* gx + sin(θ) .* gy
 end
 
+"""
+For a bounding box and a point A, find the point closest to A inside the box with 4-way connectivity.
+
+If A is inside the box, A itself will be returned. Otherwise a point on the boundary of the box will be returned.
+"""
+bbox_minmax_point(box::BBox, point::Tuple{Int, Int})::Tuple{Int, Int} =
+    min.(max.(point, first(box)), last(box)) 
 
 function srcdestboxes(
     srcsize::Tuple{Int,Int},
@@ -82,19 +95,23 @@ function srcdestboxes(
 )
     @assert all(srcsize .> 0)
     @assert all(destsize .> 0)
-    
-    btmright = topleft .+ srcsize
-    if any(btmright .< 1) || any(btmright .> destsize)
-        return [(0, 0), (0, 0)], [(0, 0), (0, 0)]
-    end
 
-    real_btmright = min.(destsize, btmright)
-    real_topleft = max.((1, 1), topleft)
+    # The plus₊ means that this point itself is not included in the region
+    # Only points up to and including btmright₊-1 are.
+    btmright₊ = topleft .+ srcsize  
 
-    destbox = [real_topleft, real_btmright]
-    srcbox = [real_topleft .- topleft .+ (1, 1), real_btmright .- topleft .+ (1, 1)]
+    destbox = bbox(1,1,srcsize...)
 
-    srcbox, destbox
+    real_topleft = bbox_minmax_point(destbox, topleft)
+    real_btmright₊ = bbox_minmax_point(destbox, btmright₊)
+
+    destregion = [real_topleft, real_btmright₊ .- 1]
+
+    src_topleft = real_topleft .- topleft
+    src_btmright = real_btmright₊ .- topleft .- 1
+    srcregion = [src_topleft, src_btmright]
+
+    srcregion, destregion
 end
 
 """
