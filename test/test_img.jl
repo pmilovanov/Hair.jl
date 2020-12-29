@@ -45,7 +45,15 @@ end
 zeroboxes = (bbox(0, 0, 0, 0), bbox(0, 0, 0, 0))
 
 @testset "place" begin
-    @test Hair.interval_overlap((1, 10), (1, 10)) == ((1, 10), (1, 10))
+    @test H.interval_overlap((1, 10), (1, 10)) == ((1, 10), (1, 10))
+    @test H.interval_overlap((1, 10), (10, 20)) == ((10, 10), (1, 1))
+    @test H.interval_overlap((10, 20), (1, 10)) == ((1, 1), (10, 10))
+    @test H.interval_overlap((21, 30), (1, 40)) == ((1, 10), (21, 30))
+    @test H.interval_overlap((0, 41), (1, 40)) == ((2, 41), (1, 40))
+    @test H.interval_overlap((-99, 40), (1, 40)) == ((101, 140), (1, 40))
+    @test H.interval_overlap((1, 40), (1, 400)) == ((1, 40), (1, 40))
+    @test H.interval_overlap((-4, 5), (1, 10)) == ((6, 10), (1, 5))
+    @test H.interval_overlap((6, 15), (1, 10)) == ((1, 5), (6, 10))
     
     # @test_throws AssertionError H.srcdestboxes((-1, 5), (5, 5), (1, 1))
     # @test_throws AssertionError H.srcdestboxes((5, 0), (1, 1), (0, 0))
