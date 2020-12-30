@@ -165,3 +165,9 @@ end
 
 "Non-modifying version of `place!(img, dest, topleft)`"
 place(img, dest, topleft) = place!(img, copy(dest), topleft)
+
+function matte_from_luminance(img::Image{C<:TransparentColor})
+    ihsla = convert.(HSLA, img)
+    ia = alpha.(img_hsla) .* comp3.(img_hsla)
+    coloralpha.(color.(img), ia)
+end
