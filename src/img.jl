@@ -1,6 +1,7 @@
 using Images, MosaicViews
 import Base.isless
 import ImageDraw
+using OffsetArrays
 
 const IDr = ImageDraw
 
@@ -21,6 +22,7 @@ y2(b::BBox) = b[2][2]
 torange(b::BBox) = [x1(b):x2(b), y1(b):y2(b)]
 
 const Image{T} = Array{T,2} where {T}
+const OAImage{T} = OffsetArray{T,2,Array{T,2}} where {T}
 const ImageMask = BitArray{2}
 
 struct Component
@@ -128,7 +130,7 @@ function pprint(A)
     show(stdout, "text/plain", A)
     println()
 end
-pprint(A::Array{Gray{T}, N}) where {N,T} = pprint(Float64.(A))
+pprint(A::Array{Gray{T},N}) where {N,T} = pprint(Float64.(A))
 
 """
 Place image `img` on top of image `dest` with `img`'s top left corner at location `(x,y)`
@@ -142,7 +144,7 @@ function place!(
     img::Image{TC},
     dest::Image{C},
     topleft::Point2,
-)::Image{C} where {TC <: TransparentColor{C}} where {C<:Color{T}} where {T}
+)::Image{C} where {TC<:TransparentColor{C}} where {C<:Color{T}} where {T}
     srcregion, destregion = box_overlap(size(img), size(dest), topleft)
     imgview = img[torange(srcregion)...]
     destview = dest[torange(destregion)...]
@@ -151,6 +153,15 @@ function place!(
     dest[torange(destregion)...] .= imgC .* imgα .+ destview .* (1 .- imgα)
     dest
 end
+
+function place!(
+    img::OAImage{TC},
+    dest::Image{C},
+    topleft::Point2,
+)::Image{C} where {TC<:TransparentColor{C}} where {C<:Color{T}} where {T}
+    place!(no_offset_view(img), dest, topleft)
+end
+
 
 "Non-modifying version of `place!(img, dest, topleft)`"
 place(img, dest, topleft) = place!(img, copy(dest), topleft)
