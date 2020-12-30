@@ -11,6 +11,7 @@ const Point2 = Tuple{Int, Int}
 
 "Bounding box"
 const BBox = Array{Tuple{Int64,Int64},1}
+
 bbox(x1, y1, x2, y2) = [(x1, y1), (x2, y2)]
 x1(b::BBox) = b[1][1]
 y1(b::BBox) = b[1][2]
@@ -95,26 +96,27 @@ function interval_overlap(src::Tuple{Int, Int}, dest::Tuple{Int, Int})::Tuple{Po
     d1, d2 = dest
     @assert s2 >= s1 && d2 >= d1
 
-    if (s1 < d1 && s2 < d1) || (s1 > d2 && s2 > d2)
-        return (1,0), (1,0)
-    end
+    if (s1 < d1 && s2 < d1) || (s1 > d2 && s2 > d2) return (1,0), (1,0) end
 
-    r1 = max(s1, d1)
-    r2 = min(s2, d2)
-
+    r1, r2 = max(s1, d1), min(s2, d2)
     sr1, sr2 = r1-s1+1, r2-s1+1
     dr1, dr2 = r1-d1+1, r2-d1+1
-    return (sr1, sr2), (dr1, dr2)
+    
+    (sr1, sr2), (dr1, dr2)
 end
 
 function box_overlap(src::BBox, dest::BBox)
     (xsr1, xsr2), (xdr1, xdr2) = interval_overlap((x1(src), x2(src)), (x1(dest), x2(dest)))
     (ysr1, ysr2), (ydr1, ydr2) = interval_overlap((y1(src), y2(src)), (y1(dest), y2(dest)))
 
+    if ((xsr1, xsr2), (xdr1, xdr2)) == ((1,0), (1,0)) || ((ysr1, ysr2), (ydr1, ydr2)) == ((1,0),(1,0))
+        return (bbox(1,1,0,0), bbox(1,1,0,0))
+    end
+    
     bbox(xsr1, ysr1, xsr2, ysr2), bbox(xdr1, ydr1, xdr2, ydr2)
 end
 
-function srcdestboxes(
+function box_overlap(
     srcsize::Tuple{Int,Int},
     destsize::Tuple{Int,Int},
     topleft::Tuple{Int,Int},
@@ -122,26 +124,7 @@ function srcdestboxes(
     @assert all(srcsize .> 0)
     @assert all(destsize .> 0)
 
-    # The plus₊ means that this point itself is not included in the region
-    # Only points up to and including btmright₊-1 are.
-    btmright₊ = topleft .+ srcsize  
-
-    destbox = bbox(1,1,destsize...)
-    destbox₊ = bbox(1,1,(destsize.+1)...)
-    srcbox = bbox(1,1,srcsize...)
-    srcbox₊ = bbox(1,1,(srcsize.+1)...)
-
-
-    real_topleft = bbox_minmax_point(destbox, topleft)
-    real_btmright₊ = bbox_minmax_point(destbox₊, btmright₊)
-
-    destregion = [real_topleft, real_btmright₊ .- 1]
-
-    src_topleft = bbox_minmax_point(srcbox, real_topleft .- topleft)
-    src_btmright = bbox_minmax_point(srcbox₊, real_btmright₊ .- topleft) .- 1
-    srcregion = [src_topleft, src_btmright]
-
-    srcregion, destregion
+    return box_overlap(bbox(topleft..., (topleft.+srcsize.-1)...), bbox(1, 1, destsize...))
 end
 
 """

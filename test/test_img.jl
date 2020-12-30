@@ -1,4 +1,4 @@
-using Images, ImageView
+using Images
 using Hair
 using Hair: bbox
 
@@ -42,7 +42,7 @@ end
 end
 
 
-zeroboxes = (bbox(0, 0, 0, 0), bbox(0, 0, 0, 0))
+zeroboxes = (bbox(1, 1, 0, 0), bbox(1, 1, 0, 0))
 
 @testset "place" begin
     @test H.interval_overlap((1, 10), (1, 10)) == ((1, 10), (1, 10))
@@ -55,6 +55,18 @@ zeroboxes = (bbox(0, 0, 0, 0), bbox(0, 0, 0, 0))
     @test H.interval_overlap((-4, 5), (1, 10)) == ((6, 10), (1, 5))
     @test H.interval_overlap((6, 15), (1, 10)) == ((1, 5), (6, 10))
     
+    @test H.box_overlap(bbox(1,1,1000,1000), bbox(1,1,1000,1000)) == (bbox(1,1,1000,1000), bbox(1,1,1000,1000))
+    @test H.box_overlap((1000, 1000), (1000, 1000), (1, 1)) == (bbox(1,1,1000,1000), bbox(1,1,1000,1000))
+    
+    @test H.box_overlap(bbox(201,201,400,400), bbox(1,1,1000,1000)) == (bbox(1,1,200,200), bbox(201,201,400,400))
+    @test H.box_overlap((200, 200), (1000, 1000), (201, 201)) == (bbox(1,1,200,200), bbox(201,201,400,400))
+
+    @test H.box_overlap((300, 200), (1000, 1000), (-500, 2)) == zeroboxes
+    @test H.box_overlap((300, 200), (1000, 1000), (-500, -500)) == zeroboxes
+    @test H.box_overlap((300, 200), (1000, 1000), (1001, 2001)) == zeroboxes
+    @test H.box_overlap((300, 200), (1000, 1000), (1001, 300)) == zeroboxes
+    
+
     # @test_throws AssertionError H.srcdestboxes((-1, 5), (5, 5), (1, 1))
     # @test_throws AssertionError H.srcdestboxes((5, 0), (1, 1), (0, 0))
     # @test_throws AssertionError H.srcdestboxes((5, 5), (-5, 1), (5, 5))
