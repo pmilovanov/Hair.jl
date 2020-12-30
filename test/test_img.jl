@@ -158,4 +158,20 @@ end
     end
 end
 
+    @testset "Misc" begin
+
+        cross = Float64.([1  0  1
+                          0  1  0
+                          1  0  1])
+
+        imghsl = HSL.(rand(Float64,3,3), rand(Float64,3,3), cross)
+        imgrgb = convert.(RGB, imghsl)
+
+
+        @test H.matte_from_luminance(RGBA.(imgrgb, ones(Float64, 3,3))) == RGBA.(imgrgb, cross)
+        @test H.matte_from_luminance(RGBA.(imgrgb, fill(0.5, 3,3))) == RGBA.(imgrgb, [0.5 0.0 0.5
+                                                                                      0.0 0.5 0.0
+                                                                                      0.5 0.0 0.5])
+    end
+
 end
