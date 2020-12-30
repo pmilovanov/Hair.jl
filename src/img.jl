@@ -168,6 +168,8 @@ place(img, dest, topleft) = place!(img, copy(dest), topleft)
 
 function matte_from_luminance(img::Image{C}) where C <: TransparentColor
     img_hsla = convert.(HSLA, img)
-    ia = alpha.(img_hsla) .* comp3.(img_hsla)
+    luminance = 1.0 .- comp3.(img_hsla)
+    luminance = adjust_histogram(luminance, Equalization(nbins = 256, minval = 0.0, maxval = 1.0))
+    ia = alpha.(img_hsla) .* luminance
     coloralpha.(color.(img), ia)
 end
