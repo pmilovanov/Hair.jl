@@ -7,7 +7,7 @@ const IDr = ImageDraw
 
 
 
-const Point2 = Tuple{Int, Int}
+const Point2 = Tuple{Int,Int}
 
 "Bounding box"
 const BBox = Array{Tuple{Int64,Int64},1}
@@ -17,6 +17,8 @@ x1(b::BBox) = b[1][1]
 y1(b::BBox) = b[1][2]
 x2(b::BBox) = b[2][1]
 y2(b::BBox) = b[2][2]
+
+torange(b::BBox) = [x1(b):x2(b), y1(b):y2(b)]
 
 const Image{T} = Array{T,2} where {T}
 const ImageMask = BitArray{2}
@@ -88,20 +90,22 @@ For a bounding box and a point A, find the point closest to A inside the box wit
 
 If A is inside the box, A itself will be returned. Otherwise a point on the boundary of the box will be returned.
 """
-bbox_minmax_point(box::BBox, point::Tuple{Int, Int})::Tuple{Int, Int} =
-    min.(max.(point, first(box)), last(box)) 
+bbox_minmax_point(box::BBox, point::Tuple{Int,Int})::Tuple{Int,Int} =
+    min.(max.(point, first(box)), last(box))
 
-function interval_overlap(src::Tuple{Int, Int}, dest::Tuple{Int, Int})::Tuple{Point2, Point2}
+function interval_overlap(src::Tuple{Int,Int}, dest::Tuple{Int,Int})::Tuple{Point2,Point2}
     s1, s2 = src
     d1, d2 = dest
     @assert s2 >= s1 && d2 >= d1
 
-    if (s1 < d1 && s2 < d1) || (s1 > d2 && s2 > d2) return (1,0), (1,0) end
+    if (s1 < d1 && s2 < d1) || (s1 > d2 && s2 > d2)
+        return (1, 0), (1, 0)
+    end
 
     r1, r2 = max(s1, d1), min(s2, d2)
-    sr1, sr2 = r1-s1+1, r2-s1+1
-    dr1, dr2 = r1-d1+1, r2-d1+1
-    
+    sr1, sr2 = r1 - s1 + 1, r2 - s1 + 1
+    dr1, dr2 = r1 - d1 + 1, r2 - d1 + 1
+
     (sr1, sr2), (dr1, dr2)
 end
 
@@ -109,37 +113,44 @@ function box_overlap(src::BBox, dest::BBox)
     (xsr1, xsr2), (xdr1, xdr2) = interval_overlap((x1(src), x2(src)), (x1(dest), x2(dest)))
     (ysr1, ysr2), (ydr1, ydr2) = interval_overlap((y1(src), y2(src)), (y1(dest), y2(dest)))
 
-    if ((xsr1, xsr2), (xdr1, xdr2)) == ((1,0), (1,0)) || ((ysr1, ysr2), (ydr1, ydr2)) == ((1,0),(1,0))
-        return (bbox(1,1,0,0), bbox(1,1,0,0))
+    if ((xsr1, xsr2), (xdr1, xdr2)) == ((1, 0), (1, 0)) ||
+       ((ysr1, ysr2), (ydr1, ydr2)) == ((1, 0), (1, 0))
+        return (bbox(1, 1, 0, 0), bbox(1, 1, 0, 0))
     end
-    
     bbox(xsr1, ysr1, xsr2, ysr2), bbox(xdr1, ydr1, xdr2, ydr2)
 end
 
-function box_overlap(
-    srcsize::Tuple{Int,Int},
-    destsize::Tuple{Int,Int},
-    topleft::Tuple{Int,Int},
-)
-    @assert all(srcsize .> 0)
-    @assert all(destsize .> 0)
+box_overlap(srcsize::Point2, destsize::Point2, topleft::Point2) =
+    box_overlap(bbox(topleft..., (topleft .+ srcsize .- 1)...), bbox(1, 1, destsize...))
 
-    return box_overlap(bbox(topleft..., (topleft.+srcsize.-1)...), bbox(1, 1, destsize...))
+
+function pprint(A)
+    show(stdout, "text/plain", A)
+    println()
 end
+pprint(A::Array{Gray{T}, N}) where {N,T} = pprint(Float64.(A))
 
 """
 Place image `img` on top of image `dest` with `img`'s top left corner at location `(x,y)`
 relative to the destination image.
 
-- Returned image's size is the same as the destination image and has the same color type.
+- Modifies the destination image and returns it.
 - `img` has alpha channel (transparency), `dest` does not.
 - `img`'s non-transparent color type must be convertible to `dest`'s color type.
 """
-function place(
-    img::Image{Transparent3{T}},
-    dest::Image{Color3{T}},
-    x::Int,
-    y::Int,
-) where {T}
+function place!(
+    img::Image{TC},
+    dest::Image{C},
+    topleft::Point2,
+)::Image{C} where {TC <: TransparentColor{C}} where {C<:Color{T}} where {T}
+    srcregion, destregion = box_overlap(size(img), size(dest), topleft)
+    imgview = img[torange(srcregion)...]
+    destview = dest[torange(destregion)...]
+    imgα, imgC = alpha.(imgview), color.(imgview)
 
+    dest[torange(destregion)...] .= imgC .* imgα .+ destview .* (1 .- imgα)
+    dest
 end
+
+"Non-modifying version of `place!(img, dest, topleft)`"
+place(img, dest, topleft) = place!(img, copy(dest), topleft)
