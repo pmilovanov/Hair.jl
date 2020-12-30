@@ -132,6 +132,23 @@ function pprint(A)
 end
 pprint(A::Array{Gray{T},N}) where {N,T} = pprint(Float64.(A))
 
+
+ontop(a::Float64, α::Float64, b::Float64) = αa + (1.0-α)b
+
+function ontop(top::TC, bottom::C)::C where {TC<:TransparentColor{C}} where {C<:Color{T}} where {T}
+    α, c = alpha(top), color(top)
+    c*α + (1-α)bottom    
+end
+
+function ontop_multiply_luminance(top::TC, bottom::C)::C where {TC<:TransparentColor{C}} where {C<:Color{T}} where {T}
+    htop, hbottom = convert(HSLA, top), convert(HSL, bottom)
+    α = alpha(htop)
+    lum = ontop(comp3(htop)*comp3(bottom), comp3(bottom), alpha(htop))
+#    result = HSL(comp1(
+    
+end
+
+
 """
 Place image `img` on top of image `dest` with `img`'s top left corner at location `(x,y)`
 relative to the destination image.
@@ -141,16 +158,13 @@ relative to the destination image.
 - `img`'s non-transparent color type must be convertible to `dest`'s color type.
 """
 function place!(
-    img::Image{TC},
-    dest::Image{C},
+    img::Image{A},
+    dest::Image{B},
     topleft::Point2,
-)::Image{C} where {TC<:TransparentColor{C}} where {C<:Color{T}} where {T}
+    placerfunc=ontop
+)::Image{B} where {A<:Colorant, B<:Colorant}
     srcregion, destregion = box_overlap(size(img), size(dest), topleft)
-    imgview = img[torange(srcregion)...]
-    destview = dest[torange(destregion)...]
-    imgα, imgC = alpha.(imgview), color.(imgview)
-
-    dest[torange(destregion)...] .= imgC .* imgα .+ destview .* (1 .- imgα)
+    dest[torange(destregion)...] .= placerfunc.(img[torange(srcregion)...], dest[torange(destregion)...])
     dest
 end
 
