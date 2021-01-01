@@ -133,19 +133,22 @@ end
 pprint(A::Array{Gray{T},N}) where {N,T} = pprint(Float64.(A))
 
 
-ontop(a::Float64, α::Float64, b::Float64) = αa + (1.0-α)b
+ontop(a, α, b) = α*a + (1.0-α)b
 
 function ontop(top::TC, bottom::C)::C where {TC<:TransparentColor{C}} where {C<:Color{T}} where {T}
     α, c = alpha(top), color(top)
     c*α + (1-α)bottom    
 end
 
-function ontop_multiply_luminance(top::TC, bottom::C)::C where {TC<:TransparentColor{C}} where {C<:Color{T}} where {T}
+function multiply_luminance(top::TC, bottom::C)::C where {TC<:TransparentColor{C}} where {C<:Color{T}} where {T}
     htop, hbottom = convert(HSLA, top), convert(HSL, bottom)
     α = alpha(htop)
-    lum = ontop(comp3(htop)*comp3(bottom), comp3(bottom), alpha(htop))
-#    result = HSL(comp1(
-    
+#    lum = ontop(comp3(htop)*comp3(bottom), alpha(htop), comp3(bottom))
+    lum = comp3(htop)*comp3(bottom)
+    result = HSL(comp1(hbottom), comp2(hbottom), lum)
+    result = convert(typeof(bottom), result)
+
+    ontop(result, alpha(top), bottom)
 end
 
 
@@ -168,17 +171,19 @@ function place!(
     dest
 end
 
+
 function place!(
     img::OAImage{TC},
     dest::Image{C},
     topleft::Point2,
+    placerfunc=ontop
 )::Image{C} where {TC<:TransparentColor{C}} where {C<:Color{T}} where {T}
-    place!(no_offset_view(img), dest, topleft)
+    place!(OffsetArrays.no_offset_view(img), dest, topleft, placerfunc)
 end
 
 
 "Non-modifying version of `place!(img, dest, topleft)`"
-place(img, dest, topleft) = place!(img, copy(dest), topleft)
+place(img, dest, topleft, placerfunc=ontop) = place!(img, copy(dest), topleft, placerfunc)
 
 function matte_from_luminance(img::Image{C}) where C <: TransparentColor
     img_hsla = convert.(HSLA, img)
