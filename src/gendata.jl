@@ -11,12 +11,14 @@ sample_image(img::Image{T}, s::S) where {T,S<:SamplingStrategy} = error("Not imp
     n::Int = 0
     side::Int = 128
     overlap::Int = 10
-    cover_edges::Bool = False
+    cover_edges::Bool = false
 end
 
 
 function sample_image(img::Image, s::GridStrategy)
-    if any(size(img) .< s.side); return []; end
+    if any(size(img) .< s.side)
+        return []
+    end
 
     times_fully_fits_into_length(l_into, l_given, overlap) =
         ((l_into - l_given) ÷ (l_given - overlap) + 1)
@@ -27,11 +29,29 @@ function sample_image(img::Image, s::GridStrategy)
     candidates =
         [(1, 1) .+ (step * (i - 1), step * (j - 1)) for i = 1:nfits_x for j = 1:nfits_y]
 
-#    if s.cover_edges && (step*nfits_x
-    
-    samples =
-        (s.n == 0 || s.n == length(candidates)) ? samples :
-        [sample(candidates) for i = 1:s.n]
+    if s.cover_edges
+        cover_x = ((step * nfits_x + s.side) != size(img)[1])
+        cover_y = ((step * nfits_y + s.side) != size(img)[2])
+        if cover_x
+            push!(
+                candidates,
+                [(size(img)[1] - s.side + 1, step * (i - 1)) for i = 1:nfits_x]...,
+            )
+        end
+        if cover_y
+            push!(
+                candidates,
+                [(size(img)[2] - s.side + 1, step * (i - 1)) for i = 1:nfits_y]...,
+            )
+        end
+        if cover_x || cover_y
+            push!(candidates, (size(img)[1] - s.side + 1, size(img)[2] - s.side + 1))
+        end
+    end
+
+    if s.n == 0 || s.n == length(candidates)
+        samples = [sample(candidates) for i = 1:s.n]
+    end
 
     [img[c[1]:c[1]+s.side-1, c[2]:c[2]+s.side-1] for c in samples]
 end
