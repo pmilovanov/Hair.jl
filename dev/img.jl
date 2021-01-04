@@ -30,7 +30,5 @@ gopher = load("/home/pmilovanov/tmp/gopher.jpeg")
 
 hairmos(img, comps, 3, 5)
 hair = convert.(RGBA, H.image(img, comps[12]))
-    
+
 imshow(H.place(hair, gopher, (500, 500), H.multiply_luminance))
-
-

@@ -133,18 +133,24 @@ end
 pprint(A::Array{Gray{T},N}) where {N,T} = pprint(Float64.(A))
 
 
-ontop(a, α, b) = α*a + (1.0-α)b
+ontop(a, α, b) = α * a + (1.0 - α)b
 
-function ontop(top::TC, bottom::C)::C where {TC<:TransparentColor{C}} where {C<:Color{T}} where {T}
+function ontop(
+    top::TC,
+    bottom::C,
+)::C where {TC<:TransparentColor{C}} where {C<:Color{T}} where {T}
     α, c = alpha(top), color(top)
-    c*α + (1-α)bottom    
+    c * α + (1 - α)bottom
 end
 
-function multiply_luminance(top::TC, bottom::C)::C where {TC<:TransparentColor{C}} where {C<:Color{T}} where {T}
+function multiply_luminance(
+    top::TC,
+    bottom::C,
+)::C where {TC<:TransparentColor{C}} where {C<:Color{T}} where {T}
     htop, hbottom = convert(HSLA, top), convert(HSL, bottom)
     α = alpha(htop)
-#    lum = ontop(comp3(htop)*comp3(bottom), alpha(htop), comp3(bottom))
-    lum = comp3(htop)*comp3(bottom)
+    #    lum = ontop(comp3(htop)*comp3(bottom), alpha(htop), comp3(bottom))
+    lum = comp3(htop) * comp3(bottom)
     result = HSL(comp1(hbottom), comp2(hbottom), lum)
     result = convert(typeof(bottom), result)
 
@@ -164,10 +170,11 @@ function place!(
     img::Image{A},
     dest::Image{B},
     topleft::Point2,
-    placerfunc=ontop
-)::Image{B} where {A<:Colorant, B<:Colorant}
+    placerfunc = ontop,
+)::Image{B} where {A<:Colorant,B<:Colorant}
     srcregion, destregion = box_overlap(size(img), size(dest), topleft)
-    dest[torange(destregion)...] .= placerfunc.(img[torange(srcregion)...], dest[torange(destregion)...])
+    dest[torange(destregion)...] .=
+        placerfunc.(img[torange(srcregion)...], dest[torange(destregion)...])
     dest
 end
 
@@ -176,19 +183,20 @@ function place!(
     img::OAImage{TC},
     dest::Image{C},
     topleft::Point2,
-    placerfunc=ontop
+    placerfunc = ontop,
 )::Image{C} where {TC<:TransparentColor{C}} where {C<:Color{T}} where {T}
     place!(OffsetArrays.no_offset_view(img), dest, topleft, placerfunc)
 end
 
 
 "Non-modifying version of `place!(img, dest, topleft)`"
-place(img, dest, topleft, placerfunc=ontop) = place!(img, copy(dest), topleft, placerfunc)
+place(img, dest, topleft, placerfunc = ontop) = place!(img, copy(dest), topleft, placerfunc)
 
-function matte_from_luminance(img::Image{C}) where C <: TransparentColor
+function matte_from_luminance(img::Image{C}) where {C<:TransparentColor}
     img_hsla = convert.(HSLA, img)
     luminance = 1.0 .- comp3.(img_hsla)
-    luminance = adjust_histogram(luminance, Equalization(nbins = 256, minval = 0.0, maxval = 1.0))
+    luminance =
+        adjust_histogram(luminance, Equalization(nbins = 256, minval = 0.0, maxval = 1.0))
     ia = alpha.(img_hsla) .* luminance
     coloralpha.(color.(img), ia)
 end
