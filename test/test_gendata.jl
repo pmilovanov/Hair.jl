@@ -25,7 +25,7 @@ testdata(datasize::Int) =
 
     @test H.sample_image(
         img,
-        GridStrategy(n = 4, side = 3, overlap = 1, cover_edges = false),
+        GridStrategy(side = 3, overlap = 1),
     ) == [
         [
             2 3 4
@@ -75,7 +75,7 @@ testdata(datasize::Int) =
     ]
 
 
-    @test H.sample_image(img, GridStrategy(n = 4, side = 3, overlap = 1)) == [
+    @test H.sample_image(img, GridStrategy(n = 4, side = 3, overlap = 1, cover_edges=false)) == [
         [
             2 3 4
             3 4 5
