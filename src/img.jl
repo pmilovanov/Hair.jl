@@ -170,7 +170,7 @@ function place!(
     img::Image{A},
     dest::Image{B},
     topleft::Point2,
-    placerfunc = ontop,
+    placerfunc = multiply_luminance,
 )::Image{B} where {A<:Colorant,B<:Colorant}
     srcregion, destregion = box_overlap(size(img), size(dest), topleft)
     dest[torange(destregion)...] .=

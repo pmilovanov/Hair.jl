@@ -21,7 +21,7 @@ function sample_image(img::Image, s::GridStrategy)
     end
 
     times_fully_fits_into_length(l_into, l_given, overlap) =
-        ((l_into - l_given) ÷ (l_given - overlap)+1)
+        ((l_into - l_given) ÷ (l_given - overlap) + 1)
     nfits_x = times_fully_fits_into_length(size(img)[1], s.side, s.overlap)
     nfits_y = times_fully_fits_into_length(size(img)[2], s.side, s.overlap)
 
@@ -29,7 +29,7 @@ function sample_image(img::Image, s::GridStrategy)
     candidates =
         [(1, 1) .+ (step * (i - 1), step * (j - 1)) for j = 1:nfits_y for i = 1:nfits_x]
 
-    if s.cover_edges        
+    if s.cover_edges
         cover_x = ((step * (nfits_x - 1) + s.side) != size(img)[1])
         cover_y = ((step * (nfits_y - 1) + s.side) != size(img)[2])
         if cover_x
@@ -53,12 +53,12 @@ function sample_image(img::Image, s::GridStrategy)
         (s.n == 0 || s.n == length(candidates)) ? candidates :
         [sample(candidates) for i = 1:s.n]
 
-
     [img[c[1]:c[1]+s.side-1, c[2]:c[2]+s.side-1] for c in samples]
 end
 
-
-struct RandomPositionStrategy <: SamplingStrategy
-    n::Int
-    side::Int
+function gen_single_hairs(img::Image; threshold::Float64 = 0.9, minhairarea::Int = 50, n::Int = 1000)
+    hsl = HSL.(color.(img)); lum = comp3.(hsl)
+    mask = (lum .< threshold)
+    comps = components(mask, minarea=minhairarea)[2:end]
+    [image(img, comp) for comp in comps[1:max(n,length(comps))]]
 end
