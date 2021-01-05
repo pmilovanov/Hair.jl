@@ -60,5 +60,6 @@ function gen_single_hairs(img::Image; threshold::Float64 = 0.9, minhairarea::Int
     hsl = HSL.(color.(img)); lum = comp3.(hsl)
     mask = (lum .< threshold)
     comps = components(mask, minarea=minhairarea)[2:end]
-    [image(img, comp) for comp in comps[1:max(n,length(comps))]]
+    [image(img, comp) for comp in comps[1:min(n,length(comps))]]
 end
+
