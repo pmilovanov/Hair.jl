@@ -51,12 +51,21 @@ function gen_single_hairs(img::Image; threshold::Float64 = 0.9, minhairarea::Int
   lum = comp3.(hsl)
   mask = (lum .< threshold)
   comps = components(mask, minarea = minhairarea)[2:end]
-  [image(img, comp) for comp in comps[1:min(n, length(comps))]]
+  matte_color = mode(img)
+  [matte_with_color(image(img, comp), matte_color) for comp in comps[1:min(n, length(comps))]]
 end
 
 
 
-random_rot(img::AnyImage) = imrotate(img, rand() * 2π)
+function t_random(;scale=(0.25,1), θ=(0,2π), opacity=(0.3, 1))
+  randrange(rmin, rmax) = rand()*(rmax-rmin) + rmin
+  function transform(img::Image)
+    img = imrotate(img, randrange(θ...))
+    img = imresize(img, ratio=randrange(scale...))
+  end
+end
+
+                                              
 
 
 function put_hairs(dest, n::Int, allhairs::Array{Image{T},1} where {T}, transform_fn)
