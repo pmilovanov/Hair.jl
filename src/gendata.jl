@@ -56,10 +56,31 @@ function sample_image(img::Image, s::GridStrategy)
     [img[c[1]:c[1]+s.side-1, c[2]:c[2]+s.side-1] for c in samples]
 end
 
-function gen_single_hairs(img::Image; threshold::Float64 = 0.9, minhairarea::Int = 50, n::Int = 1000)
-    hsl = HSL.(color.(img)); lum = comp3.(hsl)
+function gen_single_hairs(
+    img::Image;
+    threshold::Float64 = 0.9,
+    minhairarea::Int = 50,
+    n::Int = 1000,
+)
+    hsl = HSL.(color.(img))
+    lum = comp3.(hsl)
     mask = (lum .< threshold)
-    comps = components(mask, minarea=minhairarea)[2:end]
-    [image(img, comp) for comp in comps[1:min(n,length(comps))]]
+    comps = components(mask, minarea = minhairarea)[2:end]
+    [image(img, comp) for comp in comps[1:min(n, length(comps))]]
 end
 
+
+
+random_rot(img::AnyImage) = imrotate(img, rand() * 2π)
+
+
+function put_hairs(dest, n::Int, allhairs::Array{Image{T},1} where {T}, transform_fn)
+    dest = copy(dest)
+    for i = 1:n
+        img = transform_fn(sample(allhairs))
+        x0, y0, x1, y1 = (1, 1, size(dest)...) .- (size(img)..., size(img)...)
+        pos = sample(x0:x1), sample(y0:y1)
+        place!(img, dest, pos)
+    end
+    dest
+end

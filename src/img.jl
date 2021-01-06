@@ -2,6 +2,7 @@ using Images, MosaicViews
 import Base.isless
 import ImageDraw
 using OffsetArrays
+using Match
 
 const IDr = ImageDraw
 
@@ -23,6 +24,7 @@ torange(b::BBox) = [x1(b):x2(b), y1(b):y2(b)]
 
 const Image{T} = Array{T,2} where {T}
 const OAImage{T} = OffsetArray{T,2,Array{T,2}} where {T}
+const AnyImage{T} = Union{Image{T},OAImage{T}} where {T}
 const ImageMask = BitArray{2}
 
 struct Component
@@ -143,10 +145,7 @@ function ontop(
     c * α + (1 - α)bottom
 end
 
-function multiply_luminance(
-    top::TC,
-    bottom::C,
-)::C where {TC<:TransparentColor{C}} where {C<:Color{T}} where {T}
+function multiply_luminance(top::TC, bottom::C)::C where {TC<:TransparentColor,C<:Color}
     htop, hbottom = convert(HSLA, top), convert(HSL, bottom)
     α = alpha(htop)
     #    lum = ontop(comp3(htop)*comp3(bottom), alpha(htop), comp3(bottom))
@@ -180,11 +179,11 @@ end
 
 
 function place!(
-    img::OAImage{TC},
-    dest::Image{C},
+    img::OAImage{A},
+    dest::Image{B},
     topleft::Point2,
-    placerfunc = ontop,
-)::Image{C} where {TC<:TransparentColor{C}} where {C<:Color{T}} where {T}
+    placerfunc = multiply_luminance,
+)::Image{B} where {A<:Colorant,B<:Colorant}
     place!(OffsetArrays.no_offset_view(img), dest, topleft, placerfunc)
 end
 
@@ -199,4 +198,31 @@ function matte_from_luminance(img::Image{C}) where {C<:TransparentColor}
         adjust_histogram(luminance, Equalization(nbins = 256, minval = 0.0, maxval = 1.0))
     ia = alpha.(img_hsla) .* luminance
     coloralpha.(color.(img), ia)
+end
+
+
+function matte_with_color(
+    img::Image{C},
+    matte::C,
+)::Image{TransparentColor{C}} where {C<:Color}
+
+    α_lower_bound(p::Float64, m::Float64) =
+        if p > m
+            (p - m) / (1 - m)
+        elseif p < m
+            (m - p) / m
+        else
+            0
+        end
+
+    function mattepixel(pixel::Color)
+        alphas = [
+            α_lower_bound(getfield(pixel,channel), getfield(matte, channel)) for channel=1:length(pixel)]
+        α = max(alphas...)        
+        q = (α == 0.0) ? typeof(pixel)(1) : 
+            ((pixel.-matte)./α .+ matte)
+
+        coloralpha(q, α)
+    end
+
 end
