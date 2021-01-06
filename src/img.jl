@@ -35,8 +35,7 @@ struct Component
 end
 
 "Make a polygon out of a bounding box produced by functions like `label_components(...)`"
-boxpoly(b::BBox) =
-  IDr.Polygon([IDr.Point(x1(b), y1(b)), IDr.Point(x1(b), y2(b)), IDr.Point(x2(b), y2(b)), IDr.Point(x2(b), y1(b))])
+boxpoly(b::BBox) = IDr.Polygon([IDr.Point(x1(b), y1(b)), IDr.Point(x1(b), y2(b)), IDr.Point(x2(b), y2(b)), IDr.Point(x2(b), y1(b))])
 boxpoly(c::Component) = boxpoly.bbox
 
 area(b::BBox) = abs((x2(b) - x1(b)) * (y2(b) - y1(b)))
@@ -66,8 +65,7 @@ imneg(img::Image{T}) where {T} = 1 .- img
 
 image(img::Image{T}, c::Component) where {T} = coloralpha.(imgslice(img, c.bbox), c.mask)
 
-compmosaic(img::Image{T}, components::Array{Component,1}; kwargs...) where {T} =
-  mosaicview([image(img, c) for c in components]; kwargs...)
+compmosaic(img::Image{T}, components::Array{Component,1}; kwargs...) where {T} = mosaicview([image(img, c) for c in components]; kwargs...)
 
 function opening_n!(img::Image{T}, n::Int) where {T}
   for i = 1:n
@@ -135,6 +133,11 @@ function ontop(top::TC, bottom::C)::C where {TC<:TransparentColor{C}} where {C<:
   c * α + (1 - α)bottom
 end
 
+function ontop(top::TC, bottom::C)::C where {TC<:TransparentColor, C<:Color}
+  top = coloralpha.(convert.(typeof(bottom), color.(top)), alpha.(top))
+  ontop(top, bottom)
+end
+
 function multiply_luminance(top::TC, bottom::C)::C where {TC<:TransparentColor,C<:Color}
   htop, hbottom = convert(HSLA, top), convert(HSL, bottom)
   α = alpha(htop)
@@ -155,24 +158,14 @@ relative to the destination image.
 - `img` has alpha channel (transparency), `dest` does not.
 - `img`'s non-transparent color type must be convertible to `dest`'s color type.
 """
-function place!(
-  img::Image{A},
-  dest::Image{B},
-  topleft::Point2,
-  placerfunc = multiply_luminance,
-)::Image{B} where {A<:Colorant,B<:Colorant}
+function place!(img::Image{A}, dest::Image{B}, topleft::Point2, placerfunc = ontop)::Image{B} where {A<:Colorant,B<:Colorant}
   srcregion, destregion = box_overlap(size(img), size(dest), topleft)
   dest[torange(destregion)...] .= placerfunc.(img[torange(srcregion)...], dest[torange(destregion)...])
   dest
 end
 
 
-function place!(
-  img::OAImage{A},
-  dest::Image{B},
-  topleft::Point2,
-  placerfunc = multiply_luminance,
-)::Image{B} where {A<:Colorant,B<:Colorant}
+function place!(img::OAImage{A}, dest::Image{B}, topleft::Point2, placerfunc = ontop)::Image{B} where {A<:Colorant,B<:Colorant}
   place!(OffsetArrays.no_offset_view(img), dest, topleft, placerfunc)
 end
 
@@ -189,30 +182,47 @@ function matte_from_luminance(img::Image{C}) where {C<:TransparentColor}
 end
 
 
-function α_lower_bound(p::Float64, m::Float64)
-  if p > m
+function α_lower_bound(p::Real, m::Real)
+  α = if p > m
     (p - m) / (1 - m)
   elseif p < m
     (m - p) / m
   else
     0
   end
+
+#  @show p, m, α
+  α
 end
 
 α_lower_bound(p::N0f8, m::N0f8) = α_lower_bound(convert(Float64, p), convert(Float64, m))
 
 function matte_with_color(img::Image{C}, matte::C)::Image{TransparentColor{C}} where {C<:Color}
 
-
+  matte = convert(ccolor(Color{Float64}, typeof(matte)), matte)
   function mattepixel(pixel::Color)
     alphas = [α_lower_bound(getfield(pixel, channel), getfield(matte, channel)) for channel = 1:length(pixel)]
     α = max(alphas...)
-    q = (α == 0.0) ? typeof(pixel)(1) : ((pixel .- matte) ./ α .+ matte)
 
+    fpixel = convert(ccolor(Color{Float64}, typeof(pixel)), pixel)
+    q = (α == 0.0) ? typeof(pixel)(1) : ((fpixel .- matte) ./ α .+ matte)
+    # if (α > 0.0)
+    #   @show (fpixel .- matte), ((fpixel .- matte) ./ α)
+    # end
+    # @show α, q
+    α = convert(eltype(pixel), α)
+    q = convert(typeof(pixel), q)
     coloralpha(q, α)
   end
 
   map(mattepixel, img)
 end
 
-matte_with_color(img::Image{C} where {C<:Color}) = matte_with_color(img, mode(img))
+function matte_with_color(img::Image{TC}, matte::C) where {TC<:TransparentColor{C}} where {C<:Color}
+  matted = matte_with_color(color.(img), matte)
+  coloralpha.(color.(matted), min.(alpha.(matted), alpha.(img)))
+end
+
+matte_with_color(img::Image{TC}, matte::TC) where {TC<:TransparentColor} = matte_with_color(img, color(matte))
+
+matte_with_color(img::Image{C} where {C<:Colorant}) = matte_with_color(img, mode(img))
