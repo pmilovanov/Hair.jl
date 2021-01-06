@@ -226,3 +226,6 @@ end
 matte_with_color(img::Image{TC}, matte::TC) where {TC<:TransparentColor} = matte_with_color(img, color(matte))
 
 matte_with_color(img::Image{C} where {C<:Colorant}) = matte_with_color(img, mode(img))
+
+
+#imresize_aa
