@@ -8,14 +8,14 @@ imneg(img) = 1 .- img
 
 
 hairmos(img, comps, i, ncolumns) = imshow(Hair.compmosaic(
-    img,
-    comps[i:(i+ncolumns*ncolumns-1)],
-    ncol = ncolumns,
-    nrow = ncolumns,
-    fillvalue = Gray{N0f8}(1.0),
+  img,
+  comps[i:(i+ncolumns*ncolumns-1)],
+  ncol = ncolumns,
+  nrow = ncolumns,
+  fillvalue = Gray{N0f8}(1.0),
 ))
 
-img = load(ENV["HOME"] * "/data/hair/scratch/cropped.png")
+hairs = load(ENV["HOME"] * "/data/hair/scratch/cropped.png")
 #img= load(ENV["HOME"] * "/data/hair/scans/out0014.png")
 #img = img0
 
@@ -28,7 +28,7 @@ comps = Hair.components(mask95, minarea = 50)[2:end]
 
 gopher = load("/home/pmilovanov/tmp/gopher.jpeg")
 
-hairmos(img, comps, 3, 5)
+#hairmos(img, comps, 3, 5)
 hair = convert.(RGBA, H.image(img, comps[12]))
 
-imshow(H.place(hair, gopher, (500, 500), H.multiply_luminance))
+#imshow(H.place(hair, gopher, (500, 500), H.multiply_luminance))
