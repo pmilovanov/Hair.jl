@@ -2,7 +2,7 @@ using Images, MosaicViews
 import Base.isless
 import ImageDraw
 using OffsetArrays
-using Match
+
 
 const IDr = ImageDraw
 
@@ -201,19 +201,26 @@ function matte_from_luminance(img::Image{C}) where {C<:TransparentColor}
 end
 
 
+function α_lower_bound(p::Float64, m::Float64)
+    if p > m
+        (p - m) / (1 - m)
+    elseif p < m
+        (m - p) / m
+    else
+        0
+    end
+end
+
+α_lower_bound(p::N0f8, m::N0f8) = α_lower_bound(convert(Float64, p), convert(Float64, m))
+
+
+
+
 function matte_with_color(
     img::Image{C},
     matte::C,
 )::Image{TransparentColor{C}} where {C<:Color}
 
-    α_lower_bound(p::Float64, m::Float64) =
-        if p > m
-            (p - m) / (1 - m)
-        elseif p < m
-            (m - p) / m
-        else
-            0
-        end
 
     function mattepixel(pixel::Color)
         alphas = [
@@ -225,4 +232,5 @@ function matte_with_color(
         coloralpha(q, α)
     end
 
+    map(mattepixel, img)
 end
