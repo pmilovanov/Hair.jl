@@ -56,10 +56,19 @@ function gen_single_hairs(img::Image; threshold::Float64 = 0.9, minhairarea::Int
 end
 
 
+iminvert(img::Image{C}) where {C <: Color} = convert(eltype(img),1.0) .- img
+iminvert(img::Image{TC}) where TC<:TransparentColor = coloralpha.(color.(img), alpha.(img))
+  
 
-function t_random(;scale=(0.25,1), θ=(0,2π), opacity=(0.3, 1))
+function t_random(;scale=(0.25,1), θ=(0,2π), opacity=(0.3, 1), invert_prob=0.5)
   randrange(rmin, rmax) = rand()*(rmax-rmin) + rmin
-  function transform(img::Image)
+  function transform(img::Image{TC}) where TC<:TransparentColor
+
+    imgcolor, imgα = color.(img), alpha.(img)
+    imgα = convert.(eltype(eltype(img)), imgα .* randrange(opacity...))
+    if (rand() < invert_prob); imgcolor = iminvert(imgcolor); end
+    img = coloralpha.(imgcolor, imgα)
+    
     img = imrotate(img, randrange(θ...))
     img = imresize(img, ratio=randrange(scale...))
   end
