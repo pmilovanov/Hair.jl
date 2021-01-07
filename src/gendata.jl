@@ -56,34 +56,38 @@ function gen_single_hairs(img::Image; threshold::Float64 = 0.9, minhairarea::Int
 end
 
 
-iminvert(img::Image{C}) where {C <: Color} = convert(eltype(img),1.0) .- img
-iminvert(img::Image{TC}) where TC<:TransparentColor = coloralpha.(color.(img), alpha.(img))
-  
+iminvert(img::Image{C}) where {C<:Color} = convert(eltype(img), 1.0) .- img
+iminvert(img::Image{TC}) where {TC<:TransparentColor} = coloralpha.(color.(img), alpha.(img))
 
-function t_random(;scale=(0.25,1), θ=(0,2π), opacity=(0.3, 1), invert_prob=0.5)
-  randrange(rmin, rmax) = rand()*(rmax-rmin) + rmin
-  function transform(img::Image{TC}) where TC<:TransparentColor
+
+function t_random(; scale = (0.25, 1), θ = (0, 2π), opacity = (0.3, 1), invert_prob = 0.5)
+  randrange(rmin, rmax) = rand() * (rmax - rmin) + rmin
+  function transform(img::Image{TC}) where {TC<:TransparentColor}
 
     imgcolor, imgα = color.(img), alpha.(img)
     imgα = convert.(eltype(eltype(img)), imgα .* randrange(opacity...))
-    if (rand() < invert_prob); imgcolor = iminvert(imgcolor); end
+    if (rand() < invert_prob)
+      imgcolor = iminvert(imgcolor)
+    end
     img = coloralpha.(imgcolor, imgα)
-    
+
     img = imrotate(img, randrange(θ...))
-    img = imresize(img, ratio=randrange(scale...))
+    img = imresize(img, ratio = randrange(scale...))
   end
 end
 
-                                              
 
-
-function put_hairs(dest, n::Int, allhairs::Array{Image{T},1} where {T}, transform_fn)
+function put_hairs(dest::Image, n::Int, allhairs::Array{Image{T},1} where {T}, transform_fn)
   dest = copy(dest)
+  mask = zeros(Gray{eltype(eltype(dest))}, size(dest))
+
   for i = 1:n
     img = transform_fn(sample(allhairs))
     x0, y0, x1, y1 = (1, 1, size(dest)...) .- (size(img)..., size(img)...)
     pos = sample(x0:x1), sample(y0:y1)
     place!(img, dest, pos)
+    place!(convert.(Gray, alpha.(img)), mask, pos, (a, b) -> max(a, b))
   end
-  dest
+  mask = mask .> 0.05
+  dest, mask
 end

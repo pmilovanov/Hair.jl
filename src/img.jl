@@ -11,7 +11,9 @@ const IDr = ImageDraw
 
 const Point2 = Tuple{Int,Int}
 
-"Bounding box"
+"""
+Bounding box
+"""
 const BBox = Array{Tuple{Int64,Int64},1}
 
 bbox(x1, y1, x2, y2) = [(x1, y1), (x2, y2)]
@@ -34,7 +36,9 @@ struct Component
   mask::BitArray{2}
 end
 
-"Make a polygon out of a bounding box produced by functions like `label_components(...)`"
+"""
+Make a polygon out of a bounding box produced by functions like `label_components(...)`
+"""
 boxpoly(b::BBox) = IDr.Polygon([IDr.Point(x1(b), y1(b)), IDr.Point(x1(b), y2(b)), IDr.Point(x2(b), y2(b)), IDr.Point(x2(b), y1(b))])
 boxpoly(c::Component) = boxpoly.bbox
 
@@ -76,7 +80,9 @@ function opening_n!(img::Image{T}, n::Int) where {T}
   end
 end
 
-"Gradient of an image in the direction specified by the angle θ"
+"""
+Gradient of an image in the direction specified by the angle θ
+"""
 function anglegrad(img::Array{T,2}, θ::Float64) where {T}
   gx, gy = imgradients(img, Kernel.ando5)
   cos(θ) .* gx + sin(θ) .* gy
@@ -126,14 +132,14 @@ end
 pprint(A::Array{Gray{T},N}) where {N,T} = pprint(Float64.(A))
 
 
-ontop(a, α, b) = α * a + (1.0 - α)b
+#ontop(a, α, b) = α * a + (1.0 - α)b
 
 function ontop(top::TC, bottom::C)::C where {TC<:TransparentColor{C}} where {C<:Color{T}} where {T}
   α, c = alpha(top), color(top)
   c * α + (1 - α)bottom
 end
 
-function ontop(top::TC, bottom::C)::C where {TC<:TransparentColor, C<:Color}
+function ontop(top::TC, bottom::C)::C where {TC<:TransparentColor,C<:Color}
   top = coloralpha.(convert.(typeof(bottom), color.(top)), alpha.(top))
   ontop(top, bottom)
 end
@@ -154,9 +160,9 @@ end
 Place image `img` on top of image `dest` with `img`'s top left corner at location `(x,y)`
 relative to the destination image.
 
-- Modifies the destination image and returns it.
-- `img` has alpha channel (transparency), `dest` does not.
-- `img`'s non-transparent color type must be convertible to `dest`'s color type.
+  - Modifies the destination image and returns it.
+  - `img` has alpha channel (transparency), `dest` does not.
+  - `img`'s non-transparent color type must be convertible to `dest`'s color type.
 """
 function place!(img::Image{A}, dest::Image{B}, topleft::Point2, placerfunc = ontop)::Image{B} where {A<:Colorant,B<:Colorant}
   srcregion, destregion = box_overlap(size(img), size(dest), topleft)
@@ -170,7 +176,9 @@ function place!(img::OAImage{A}, dest::Image{B}, topleft::Point2, placerfunc = o
 end
 
 
-"Non-modifying version of `place!(img, dest, topleft)`"
+"""
+Non-modifying version of `place!(img, dest, topleft)`
+"""
 place(img, dest, topleft, placerfunc = ontop) = place!(img, copy(dest), topleft, placerfunc)
 
 function matte_from_luminance(img::Image{C}) where {C<:TransparentColor}
@@ -191,7 +199,7 @@ function α_lower_bound(p::Real, m::Real)
     0
   end
 
-#  @show p, m, α
+  #  @show p, m, α
   α
 end
 

@@ -27,11 +27,11 @@ imshow(hair)
 hair_wa = H.matte_with_color(hair)
 go1 = copy(gopher)
 
-H.place!(hair_wa, go1, (100,100), H.ontop)
+H.place!(hair_wa, go1, (100, 100), H.ontop)
 
-H.place!(hair_wa, go1, (250,100), H.multiply_luminance)
+H.place!(hair_wa, go1, (250, 100), H.multiply_luminance)
 
-H.place!(imresize(hair_wa, ratio=0.5), go1, (200,200), H.ontop)
+H.place!(imresize(hair_wa, ratio = 0.5), go1, (200, 200), H.ontop)
 
 
 imshow(go1)
