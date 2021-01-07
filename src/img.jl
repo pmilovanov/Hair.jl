@@ -132,7 +132,7 @@ end
 pprint(A::Array{Gray{T},N}) where {N,T} = pprint(Float64.(A))
 
 
-#ontop(a, α, b) = α * a + (1.0 - α)b
+
 
 function ontop(top::TC, bottom::C)::C where {TC<:TransparentColor{C}} where {C<:Color{T}} where {T}
   α, c = alpha(top), color(top)
@@ -145,6 +145,8 @@ function ontop(top::TC, bottom::C)::C where {TC<:TransparentColor,C<:Color}
 end
 
 function multiply_luminance(top::TC, bottom::C)::C where {TC<:TransparentColor,C<:Color}
+  ontop(a, α, b) = α * a + (1.0 - α)b
+  
   htop, hbottom = convert(HSLA, top), convert(HSL, bottom)
   α = alpha(htop)
   #    lum = ontop(comp3(htop)*comp3(bottom), alpha(htop), comp3(bottom))
