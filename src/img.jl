@@ -39,7 +39,8 @@ end
 """
 Make a polygon out of a bounding box produced by functions like `label_components(...)`
 """
-boxpoly(b::BBox) = IDr.Polygon([IDr.Point(x1(b), y1(b)), IDr.Point(x1(b), y2(b)), IDr.Point(x2(b), y2(b)), IDr.Point(x2(b), y1(b))])
+boxpoly(b::BBox) =
+  IDr.Polygon([IDr.Point(x1(b), y1(b)), IDr.Point(x1(b), y2(b)), IDr.Point(x2(b), y2(b)), IDr.Point(x2(b), y1(b))])
 boxpoly(c::Component) = boxpoly.bbox
 
 area(b::BBox) = abs((x2(b) - x1(b)) * (y2(b) - y1(b)))
@@ -69,7 +70,8 @@ imneg(img::Image{T}) where {T} = 1 .- img
 
 image(img::Image{T}, c::Component) where {T} = coloralpha.(imgslice(img, c.bbox), c.mask)
 
-compmosaic(img::Image{T}, components::Array{Component,1}; kwargs...) where {T} = mosaicview([image(img, c) for c in components]; kwargs...)
+compmosaic(img::Image{T}, components::Array{Component,1}; kwargs...) where {T} =
+  mosaicview([image(img, c) for c in components]; kwargs...)
 
 function opening_n!(img::Image{T}, n::Int) where {T}
   for i = 1:n
@@ -166,14 +168,24 @@ relative to the destination image.
   - `img` has alpha channel (transparency), `dest` does not.
   - `img`'s non-transparent color type must be convertible to `dest`'s color type.
 """
-function place!(img::Image{A}, dest::Image{B}, topleft::Point2, placerfunc = ontop)::Image{B} where {A<:Colorant,B<:Colorant}
+function place!(
+  img::Image{A},
+  dest::Image{B},
+  topleft::Point2,
+  placerfunc = ontop,
+)::Image{B} where {A<:Colorant,B<:Colorant}
   srcregion, destregion = box_overlap(size(img), size(dest), topleft)
   dest[torange(destregion)...] .= placerfunc.(img[torange(srcregion)...], dest[torange(destregion)...])
   dest
 end
 
 
-function place!(img::OAImage{A}, dest::Image{B}, topleft::Point2, placerfunc = ontop)::Image{B} where {A<:Colorant,B<:Colorant}
+function place!(
+  img::OAImage{A},
+  dest::Image{B},
+  topleft::Point2,
+  placerfunc = ontop,
+)::Image{B} where {A<:Colorant,B<:Colorant}
   place!(OffsetArrays.no_offset_view(img), dest, topleft, placerfunc)
 end
 

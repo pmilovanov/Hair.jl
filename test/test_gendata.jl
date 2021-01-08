@@ -3,6 +3,7 @@ using Hair
 H = Hair
 
 using Test
+using TestImages
 
 const GA = GrayA
 
@@ -47,12 +48,24 @@ testdata(datasize::Int) = reshape([i + j for i = 1:datasize for j = 1:datasize],
   @test H.sample_image(img, GridStrategy(side = 3, overlap = 1)) ==
         [si(1, 1), si(3, 1), si(1, 3), si(3, 3), si(4, 1), si(4, 3), si(1, 4), si(3, 4), si(4, 4)]
 
-  @test H.sample_image(img, GridStrategy(side = 3, overlap = 1, cover_edges = false)) == [si(1, 1), si(3, 1), si(1, 3), si(3, 3)]
+  @test H.sample_image(img, GridStrategy(side = 3, overlap = 1, cover_edges = false)) ==
+        [si(1, 1), si(3, 1), si(1, 3), si(3, 3)]
 
-  @test H.sample_image(img[1:5, :], GridStrategy(side = 3, overlap = 1)) == [si(1, 1), si(3, 1), si(1, 3), si(3, 3), si(1, 4), si(3, 4)]
+  @test H.sample_image(img[1:5, :], GridStrategy(side = 3, overlap = 1)) ==
+        [si(1, 1), si(3, 1), si(1, 3), si(3, 3), si(1, 4), si(3, 4)]
 
 
   @test H.sample_image(img[1:5, 1:5], GridStrategy(side = 3, overlap = 1)) == [si(1, 1), si(3, 1), si(1, 3), si(3, 3)]
+end
 
-
+@testset "Full flow to put hairs on a bunch of images" begin
+  hairs_img = load(joinpath(@__DIR__, "test_hairs.png"))
+  hairs = H.gen_single_hairs(hairs_img)
+  hairy_samples = H.sample_image_and_add_hairs(
+    testimage("mountain"),
+    hairs,
+    H.MakeHairySquaresOptions(samples_per_pic = 10, square_size = 100),
+    img_id=5
+  )
+  @test length(hairy_samples) == 10
 end

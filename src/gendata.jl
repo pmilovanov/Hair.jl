@@ -63,7 +63,7 @@ iminvert(img::Image{C}) where {C<:Color} = convert(eltype(img), 1.0) .- img
 iminvert(img::Image{TC}) where {TC<:TransparentColor} = coloralpha.(color.(img), alpha.(img))
 
 
-function t_random(; scale = (0.25, 1), θ = (0, 2π), opacity = (0.3, 1), invert_prob = 0.5)
+function t_random(; scale = (0.25, 1), θ = (0, 2π), opacity = (0.6, 1), invert_prob = 0.5)
   randrange(rmin, rmax) = rand() * (rmax - rmin) + rmin
   function transform(img::Image{TC}) where {TC<:TransparentColor}
 
@@ -96,52 +96,84 @@ function put_hairs(dest::Image, n::Int, allhairs::Array{Image{T},1} where {T}, t
 end
 
 
-function make_hairy_squares(
-  hairs,
-  pics_dir,
-  output_dir;
-  samples_per_pic = 20,
-  square_size = 512,
-  prob_any_hairs = 0.5,
-  max_hairs_per_output = 5,
+
+
+
+@kwdef struct MakeHairySquaresOptions
+  samples_per_pic = 20
+  square_size = 512
+  prob_any_hairs = 0.8
+  max_hairs_per_output = 5
+end
+
+function sample_image_and_add_hairs(
+  img::Image,
+  hairs::Array{Image{T},1} where {T},
+  o::MakeHairySquaresOptions = MakeHairySquaresOptions();
+  img_id::Int = 0,
 )
-  N_CHANNEL_PICS = 16
-  c_pics = Channel(N_CHANNEL_PICS)
-  c_outputs = Channel(N_CHANNEL_PICS * samples_per_pic)
-
-  @sync begin
-
-    pics_fnames = readdir(pics_dir)
-    @async begin
-      for (i, fname) in enumerate(pics_fnames)
-        put!(c_pics, (i, load(fname)))
-      end
-      close!(c_pics)
-    end
-
-    @async begin
-      for (i, img) in pics
-        @spawn begin
-          samples = sample_image(img, GridStrategy(samples_per_pic, square_size, square_size ÷ 3))
-          for (j, sample) in enumerate(samples)
-            numhairs = (rand() < prob_any_hairs) ? rand(1:max_hairs_per_output) : 0
-            sample, mask = put_hairs(sample, numhairs, allhairs, t_random())
-            put!(c_outputs, (i, j, sample, mask))
-          end
-        end
-      end
-      close!(c_outputs)
-    end
-
-    noutputs=length(pics_fnames)*samples_per_pic
-    p = Progress(noutputs,1)
-    for (i,j,sample,mask) in c_outputs
-      basename=@printf("%06d-%06d", i, j)
-      fname, mask_fname=basename*"-I.png", basename*"-M.png"
-      save(sample, joinpath(output_dir, fname))
-      save(mask, joinpath(output_dir, mask_fname))
-      next!(p)
-    end
-    
+  out = Vector{Any}()
+  samples = sample_image(img, GridStrategy(n = o.samples_per_pic, side = o.square_size, overlap = o.square_size ÷ 3))
+  for (j, sample) in enumerate(samples)
+    numhairs = (rand() < o.prob_any_hairs) ? rand(1:o.max_hairs_per_output) : 0
+    sample, mask = put_hairs(sample, numhairs, hairs, t_random())
+    push!(out, (img_id, j, sample, mask))
   end
+  out
+end
+
+function make_hairy_squares(hairs, pics_dir, output_dir, o::MakeHairySquaresOptions=MakeHairySquaresOptions())
+  N_CHANNEL_PICS = 30
+  c_pics = Channel(N_CHANNEL_PICS)
+  c_outputs = Channel(N_CHANNEL_PICS * o.samples_per_pic)
+
+  pics_fnames = readdir(pics_dir)
+  println(pics_fnames)
+    @async begin
+      try for (i, fname) in enumerate(pics_fnames)
+        #@info "Putting $fname to c_pics"
+        put!(c_pics, (i, load(joinpath(pics_dir, fname))))
+        #@info "Added $fname to c_pics"
+      end
+      catch e; @error e
+        finally
+        close(c_pics)
+        @info "Closed c_pics"
+        end
+    end
+
+    @async begin
+      @sync try
+        for (i, img) in c_pics
+          @spawn begin
+            hairies = sample_image_and_add_hairs(img, hairs, o, img_id = i)
+          for s in hairies
+            put!(c_outputs, s)
+          end
+            @info "Output $(length(hairies)) samples"            
+            end
+        end
+      catch e; end
+      close(c_outputs)
+      @info "Done outputting to c_outputs"
+    end
+
+    noutputs = length(pics_fnames) * o.samples_per_pic
+
+    p = Progress(noutputs, 0.2)
+
+
+    for (i, j, sample, mask) = c_outputs
+#      @info "Took $i,$j sample from c_outputs"
+      basename = @sprintf("%06d-%06d", i, j)      
+      fname, mask_fname = basename * "-I.png", basename * "-M.png"
+      save(joinpath(output_dir, fname), sample)
+      save(joinpath(output_dir, mask_fname), mask)
+        next!(p)
+
+        #@show n,noutputs
+      end
+
+
+
 end
