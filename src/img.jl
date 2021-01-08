@@ -146,7 +146,7 @@ end
 
 function multiply_luminance(top::TC, bottom::C)::C where {TC<:TransparentColor,C<:Color}
   ontop(a, α, b) = α * a + (1.0 - α)b
-  
+
   htop, hbottom = convert(HSLA, top), convert(HSL, bottom)
   α = alpha(htop)
   #    lum = ontop(comp3(htop)*comp3(bottom), alpha(htop), comp3(bottom))

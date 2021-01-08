@@ -17,7 +17,7 @@ end
 function main(input_dir, output)
 
   hairsets = []
-  fnames = [fn for fn in readdir(input_dir, join=true) if endswith(fn, ".png")]
+  fnames = [fn for fn in readdir(input_dir, join = true) if endswith(fn, ".png")]
 
   p = Progress(length(fnames), 1)
   # for fname in fnames
@@ -28,25 +28,24 @@ function main(input_dir, output)
 
   c = Channel(32)
 
-  compute_hairs(ch::Channel, fname) = put!(c, H.gen_single_hairs(load(fname), n=10000))
+  compute_hairs(ch::Channel, fname) = put!(c, H.gen_single_hairs(load(fname), n = 10000))
 
   n = length(fnames)
-  for fname in fnames; @spawn compute_hairs(c, fname);  end
-  while n>0
+  for fname in fnames
+    @spawn compute_hairs(c, fname)
+  end
+  while n > 0
     push!(hairsets, take!(c))
     next!(p)
-    n = n-1
+    n = n - 1
   end
-  
+
   println("Writing file")
-  hairs = cat(hairsets..., dims=1)
+  hairs = cat(hairsets..., dims = 1)
   @save output hairs
-  
+
 end
 
 args = parse_flags()
 
 @time main(args["input_dir"], args["output"])
-
-
-

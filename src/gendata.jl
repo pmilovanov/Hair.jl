@@ -2,6 +2,9 @@
 
 using StatsBase
 using Base: @kwdef
+using Base.Threads: @spawn
+using ProgressMeter
+using Printf
 
 abstract type SamplingStrategy end
 
@@ -90,4 +93,55 @@ function put_hairs(dest::Image, n::Int, allhairs::Array{Image{T},1} where {T}, t
   end
   mask = mask .> 0.05
   dest, mask
+end
+
+
+function make_hairy_squares(
+  hairs,
+  pics_dir,
+  output_dir;
+  samples_per_pic = 20,
+  square_size = 512,
+  prob_any_hairs = 0.5,
+  max_hairs_per_output = 5,
+)
+  N_CHANNEL_PICS = 16
+  c_pics = Channel(N_CHANNEL_PICS)
+  c_outputs = Channel(N_CHANNEL_PICS * samples_per_pic)
+
+  @sync begin
+
+    pics_fnames = readdir(pics_dir)
+    @async begin
+      for (i, fname) in enumerate(pics_fnames)
+        put!(c_pics, (i, load(fname)))
+      end
+      close!(c_pics)
+    end
+
+    @async begin
+      for (i, img) in pics
+        @spawn begin
+          samples = sample_image(img, GridStrategy(samples_per_pic, square_size, square_size ÷ 3))
+          for (j, sample) in enumerate(samples)
+            numhairs = (rand() < prob_any_hairs) ? rand(1:max_hairs_per_output) : 0
+            sample, mask = put_hairs(sample, numhairs, allhairs, t_random())
+            put!(c_outputs, (i, j, sample, mask))
+          end
+        end
+      end
+      close!(c_outputs)
+    end
+
+    noutputs=length(pics_fnames)*samples_per_pic
+    p = Progress(noutputs,1)
+    for (i,j,sample,mask) in c_outputs
+      basename=@printf("%06d-%06d", i, j)
+      fname, mask_fname=basename*"-I.png", basename*"-M.png"
+      save(sample, joinpath(output_dir, fname))
+      save(mask, joinpath(output_dir, mask_fname))
+      next!(p)
+    end
+    
+  end
 end
