@@ -10,34 +10,38 @@ function par_load_img()
 
   path = "/home/pmilovanov/data/hair/hairy/exp/0107-01"
   # path = "/home/pmilovanov/data/the_met/temp/oil_sample_100"
-  fnames = readdir(path, join=true)[1:1000]
+  fnames = readdir(path, join = true)[1:1000]
   @async begin
-    for f=fnames
+    for f in fnames
       try
-        put!(c_bindata, read(f))     
-      catch e; @error e; end
+        put!(c_bindata, read(f))
+      catch e
+        @error e
+      end
     end
     close(c_bindata)
   end
-  
+
   @spawn begin
     @sync for blob in c_bindata
       @spawn try
         put!(c_images, readblob(blob))
-      catch e; @error e; end      
+      catch e
+        @error e
+      end
     end
     close(c_images)
   end
 
   v = Vector{Any}()
-  p = Progress(length(fnames), desc="Loading images")
+  p = Progress(length(fnames), desc = "Loading images")
   for img in c_images
     push!(v, img)
     next!(p)
     flush(stderr)
   end
 
-  println(Base.summarysize(v)/(2^20))
+  println(Base.summarysize(v) / (2^20))
 end
 
 

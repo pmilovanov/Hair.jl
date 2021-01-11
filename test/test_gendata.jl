@@ -65,7 +65,7 @@ end
     testimage("mountain"),
     hairs,
     H.MakeHairySquaresOptions(samples_per_pic = 10, square_size = 100),
-    img_id=5
+    img_id = 5,
   )
   @test length(hairy_samples) == 10
 end
