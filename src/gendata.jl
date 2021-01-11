@@ -5,6 +5,7 @@ using Base: @kwdef
 using Base.Threads: @spawn
 using ProgressMeter
 using Printf
+using Random: shuffle!
 
 abstract type SamplingStrategy end
 
@@ -127,7 +128,8 @@ function make_hairy_squares(hairs, pics_dir, output_dir, o::MakeHairySquaresOpti
   c_pics = Channel(N_CHANNEL_PICS)
   c_outputs = Channel(N_CHANNEL_PICS * o.samples_per_pic)
 
-  pics_fnames = readdir(pics_dir)
+  pics_fnames = shuffle(readdir(pics_dir))
+
   println(pics_fnames)
     @async begin
       try for (i, fname) in enumerate(pics_fnames)
