@@ -9,7 +9,8 @@ const GA = GrayA
 
 H = Hair
 
-testdata(datasize::Int) = reshape([i + j for i = 1:datasize for j = 1:datasize], (datasize, datasize))
+testdata(datasize::Int) =
+  reshape([i + j for i = 1:datasize for j = 1:datasize], (datasize, datasize))
 
 @testset "Generating synthetic image training data" begin
 
@@ -55,7 +56,8 @@ testdata(datasize::Int) = reshape([i + j for i = 1:datasize for j = 1:datasize],
         [si(1, 1), si(3, 1), si(1, 3), si(3, 3), si(1, 4), si(3, 4)]
 
 
-  @test H.sample_image(img[1:5, 1:5], GridStrategy(side = 3, overlap = 1)) == [si(1, 1), si(3, 1), si(1, 3), si(3, 3)]
+  @test H.sample_image(img[1:5, 1:5], GridStrategy(side = 3, overlap = 1)) ==
+        [si(1, 1), si(3, 1), si(1, 3), si(3, 3)]
 end
 
 @testset "Full flow to put hairs on a bunch of images" begin

@@ -39,8 +39,12 @@ end
 """
 Make a polygon out of a bounding box produced by functions like `label_components(...)`
 """
-boxpoly(b::BBox) =
-  IDr.Polygon([IDr.Point(x1(b), y1(b)), IDr.Point(x1(b), y2(b)), IDr.Point(x2(b), y2(b)), IDr.Point(x2(b), y1(b))])
+boxpoly(b::BBox) = IDr.Polygon([
+  IDr.Point(x1(b), y1(b)),
+  IDr.Point(x1(b), y2(b)),
+  IDr.Point(x2(b), y2(b)),
+  IDr.Point(x2(b), y1(b)),
+])
 boxpoly(c::Component) = boxpoly.bbox
 
 area(b::BBox) = abs((x2(b) - x1(b)) * (y2(b) - y1(b)))
@@ -97,7 +101,8 @@ For a bounding box and a point A, find the point closest to A inside the box wit
 
 If A is inside the box, A itself will be returned. Otherwise a point on the boundary of the box will be returned.
 """
-bbox_minmax_point(box::BBox, point::Tuple{Int,Int})::Tuple{Int,Int} = min.(max.(point, first(box)), last(box))
+bbox_minmax_point(box::BBox, point::Tuple{Int,Int})::Tuple{Int,Int} =
+  min.(max.(point, first(box)), last(box))
 
 function interval_overlap(src::Tuple{Int,Int}, dest::Tuple{Int,Int})::Tuple{Point2,Point2}
   s1, s2 = src
@@ -119,7 +124,8 @@ function box_overlap(src::BBox, dest::BBox)
   (xsr1, xsr2), (xdr1, xdr2) = interval_overlap((x1(src), x2(src)), (x1(dest), x2(dest)))
   (ysr1, ysr2), (ydr1, ydr2) = interval_overlap((y1(src), y2(src)), (y1(dest), y2(dest)))
 
-  if ((xsr1, xsr2), (xdr1, xdr2)) == ((1, 0), (1, 0)) || ((ysr1, ysr2), (ydr1, ydr2)) == ((1, 0), (1, 0))
+  if ((xsr1, xsr2), (xdr1, xdr2)) == ((1, 0), (1, 0)) ||
+     ((ysr1, ysr2), (ydr1, ydr2)) == ((1, 0), (1, 0))
     return (bbox(1, 1, 0, 0), bbox(1, 1, 0, 0))
   end
   bbox(xsr1, ysr1, xsr2, ysr2), bbox(xdr1, ydr1, xdr2, ydr2)
@@ -177,7 +183,8 @@ function place!(
   placerfunc = ontop,
 )::Image{B} where {A<:Colorant,B<:Colorant}
   srcregion, destregion = box_overlap(size(img), size(dest), topleft)
-  dest[torange(destregion)...] .= placerfunc.(img[torange(srcregion)...], dest[torange(destregion)...])
+  dest[torange(destregion)...] .=
+    placerfunc.(img[torange(srcregion)...], dest[torange(destregion)...])
   dest
 end
 
@@ -225,7 +232,10 @@ function matte_with_color(img::Image{C}, matte::C)::Image{TransparentColor{C}} w
 
   matte = convert(ccolor(Color{Float64}, typeof(matte)), matte)
   function mattepixel(pixel::Color)
-    alphas = [α_lower_bound(getfield(pixel, channel), getfield(matte, channel)) for channel = 1:length(pixel)]
+    alphas = [
+      α_lower_bound(getfield(pixel, channel), getfield(matte, channel))
+      for channel = 1:length(pixel)
+    ]
     α = max(alphas...)
 
     fpixel = convert(ccolor(Color{Float64}, typeof(pixel)), pixel)
@@ -247,7 +257,8 @@ function matte_with_color(img::Image{TC}, matte::C) where {TC<:TransparentColor{
   coloralpha.(color.(matted), min.(alpha.(matted), alpha.(img)))
 end
 
-matte_with_color(img::Image{TC}, matte::TC) where {TC<:TransparentColor} = matte_with_color(img, color(matte))
+matte_with_color(img::Image{TC}, matte::TC) where {TC<:TransparentColor} =
+  matte_with_color(img, color(matte))
 
 matte_with_color(img::Image{C} where {C<:Colorant}) = matte_with_color(img, mode(img))
 

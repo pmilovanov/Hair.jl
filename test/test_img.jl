@@ -61,12 +61,14 @@ H = Hair
       # Boxes are the same
       @test H.box_overlap(bbox(1, 1, 1000, 1000), bbox(1, 1, 1000, 1000)) ==
             (bbox(1, 1, 1000, 1000), bbox(1, 1, 1000, 1000))
-      @test H.box_overlap((1000, 1000), (1000, 1000), (1, 1)) == (bbox(1, 1, 1000, 1000), bbox(1, 1, 1000, 1000))
+      @test H.box_overlap((1000, 1000), (1000, 1000), (1, 1)) ==
+            (bbox(1, 1, 1000, 1000), bbox(1, 1, 1000, 1000))
 
       # Src completely inside dest
       @test H.box_overlap(bbox(201, 201, 400, 400), bbox(1, 1, 1000, 1000)) ==
             (bbox(1, 1, 200, 200), bbox(201, 201, 400, 400))
-      @test H.box_overlap((200, 200), (1000, 1000), (201, 201)) == (bbox(1, 1, 200, 200), bbox(201, 201, 400, 400))
+      @test H.box_overlap((200, 200), (1000, 1000), (201, 201)) ==
+            (bbox(1, 1, 200, 200), bbox(201, 201, 400, 400))
 
       # No overlap
       @test H.box_overlap((300, 200), (1000, 1000), (-500, 2)) == zeroboxes
@@ -75,12 +77,16 @@ H = Hair
       @test H.box_overlap((300, 200), (1000, 1000), (1001, 300)) == zeroboxes
 
       # 1 pixel overlap
-      @test H.box_overlap((100, 100), (1000, 1000), (1000, 1000)) == (bbox(1, 1, 1, 1), bbox(1000, 1000, 1000, 1000))
+      @test H.box_overlap((100, 100), (1000, 1000), (1000, 1000)) ==
+            (bbox(1, 1, 1, 1), bbox(1000, 1000, 1000, 1000))
       # 1 line overlap
-      @test H.box_overlap((100, 100), (1000, 1000), (501, 1000)) == (bbox(1, 1, 100, 1), bbox(501, 1000, 600, 1000))
+      @test H.box_overlap((100, 100), (1000, 1000), (501, 1000)) ==
+            (bbox(1, 1, 100, 1), bbox(501, 1000, 600, 1000))
       # Partial overlap
-      @test H.box_overlap((100, 100), (1000, 1000), (951, 951)) == (bbox(1, 1, 50, 50), bbox(951, 951, 1000, 1000))
-      @test H.box_overlap((100, 100), (1000, 1000), (-49, -39)) == (bbox(51, 41, 100, 100), bbox(1, 1, 50, 60))
+      @test H.box_overlap((100, 100), (1000, 1000), (951, 951)) ==
+            (bbox(1, 1, 50, 50), bbox(951, 951, 1000, 1000))
+      @test H.box_overlap((100, 100), (1000, 1000), (-49, -39)) ==
+            (bbox(51, 41, 100, 100), bbox(1, 1, 50, 60))
     end
 
     # Place tests

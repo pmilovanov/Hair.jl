@@ -24,7 +24,8 @@ function sample_image(img::Image, s::GridStrategy)
     return []
   end
 
-  times_fully_fits_into_length(l_into, l_given, overlap) = ((l_into - l_given) ÷ (l_given - overlap) + 1)
+  times_fully_fits_into_length(l_into, l_given, overlap) =
+    ((l_into - l_given) ÷ (l_given - overlap) + 1)
   nfits_x = times_fully_fits_into_length(size(img)[1], s.side, s.overlap)
   nfits_y = times_fully_fits_into_length(size(img)[2], s.side, s.overlap)
 
@@ -45,12 +46,18 @@ function sample_image(img::Image, s::GridStrategy)
     end
   end
 
-  samples = (s.n == 0 || s.n == length(candidates)) ? candidates : [sample(candidates) for i = 1:s.n]
+  samples =
+    (s.n == 0 || s.n == length(candidates)) ? candidates : [sample(candidates) for i = 1:s.n]
 
   [img[c[1]:c[1]+s.side-1, c[2]:c[2]+s.side-1] for c in samples]
 end
 
-function gen_single_hairs(img::Image; threshold::Float64 = 0.9, minhairarea::Int = 50, n::Int = 1000)
+function gen_single_hairs(
+  img::Image;
+  threshold::Float64 = 0.9,
+  minhairarea::Int = 50,
+  n::Int = 1000,
+)
   hsl = HSL.(color.(img))
   lum = comp3.(hsl)
   mask = (lum .< threshold)
@@ -114,7 +121,10 @@ function sample_image_and_add_hairs(
   img_id::Int = 0,
 )
   out = Vector{Any}()
-  samples = sample_image(img, GridStrategy(n = o.samples_per_pic, side = o.square_size, overlap = o.square_size ÷ 3))
+  samples = sample_image(
+    img,
+    GridStrategy(n = o.samples_per_pic, side = o.square_size, overlap = o.square_size ÷ 3),
+  )
   for (j, sample) in enumerate(samples)
     numhairs = (rand() < o.prob_any_hairs) ? rand(1:o.max_hairs_per_output) : 0
     sample, mask = put_hairs(sample, numhairs, hairs, t_random())
@@ -123,7 +133,12 @@ function sample_image_and_add_hairs(
   out
 end
 
-function make_hairy_squares(hairs, pics_dir, output_dir, o::MakeHairySquaresOptions = MakeHairySquaresOptions())
+function make_hairy_squares(
+  hairs,
+  pics_dir,
+  output_dir,
+  o::MakeHairySquaresOptions = MakeHairySquaresOptions(),
+)
   N_CHANNEL_PICS = 50
   c_pics = Channel(N_CHANNEL_PICS)
   c_outputs = Channel(N_CHANNEL_PICS * o.samples_per_pic)
@@ -131,7 +146,7 @@ function make_hairy_squares(hairs, pics_dir, output_dir, o::MakeHairySquaresOpti
   pics_fnames = shuffle(readdir(pics_dir))
   @info "Found $(length(pics_fnames)) images"
 
-  @async begin
+  @asynclog begin
     try
       for (i, fname) in enumerate(pics_fnames)
         put!(c_pics, (i, load(joinpath(pics_dir, fname))))
@@ -143,10 +158,10 @@ function make_hairy_squares(hairs, pics_dir, output_dir, o::MakeHairySquaresOpti
     end
   end
 
-  @spawn begin
+  @spawnlog begin
     @sync try
       for (i, img) in c_pics
-        @spawn for s in sample_image_and_add_hairs(img, hairs, o, img_id = i)
+        @spawnlog for s in sample_image_and_add_hairs(img, hairs, o, img_id = i)
           put!(c_outputs, s)
         end
       end

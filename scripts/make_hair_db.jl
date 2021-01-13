@@ -11,7 +11,9 @@ function parse_flags()
     "--output"
     help = "Output to this JLD2 file"
   end
-  parse_args(s)
+  args = parse_args(s)
+  for k=keys(args); args[k] = expanduser(args[k]); end
+  args
 end
 
 function main(input_dir, output)
@@ -28,7 +30,7 @@ function main(input_dir, output)
 
   c = Channel(32)
 
-  compute_hairs(ch::Channel, fname) = put!(c, H.gen_single_hairs(load(fname), n = 10000))
+  compute_hairs(ch::Channel, fname) = put!(c, H.gen_single_hairs(load(fname)))
 
   n = length(fnames)
   for fname in fnames
