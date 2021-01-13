@@ -51,6 +51,7 @@ Base.isless(x::Component, y::Component) = area(x.bbox) < area(y.bbox)
 imgslice(img::Image{T}, b::BBox) where {T} = img[x1(b):x2(b), y1(b):y2(b)]
 
 function components(img::ImageMask; minarea::Int = 0)
+  label_components
   cc = label_components(img)
   lengths = component_lengths(cc)
   boxes = component_boxes(cc)
@@ -81,6 +82,7 @@ function opening_n!(img::Image{T}, n::Int) where {T}
     erode!(img)
   end
 end
+
 
 """
 Gradient of an image in the direction specified by the angle θ

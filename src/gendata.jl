@@ -124,61 +124,46 @@ function sample_image_and_add_hairs(
 end
 
 function make_hairy_squares(hairs, pics_dir, output_dir, o::MakeHairySquaresOptions = MakeHairySquaresOptions())
-  N_CHANNEL_PICS = 30
+  N_CHANNEL_PICS = 50
   c_pics = Channel(N_CHANNEL_PICS)
   c_outputs = Channel(N_CHANNEL_PICS * o.samples_per_pic)
 
   pics_fnames = shuffle(readdir(pics_dir))
+  @info "Found $(length(pics_fnames)) images"
 
-  println(pics_fnames)
   @async begin
     try
       for (i, fname) in enumerate(pics_fnames)
-        #@info "Putting $fname to c_pics"
         put!(c_pics, (i, load(joinpath(pics_dir, fname))))
-        #@info "Added $fname to c_pics"
       end
     catch e
       @error e
     finally
       close(c_pics)
-      @info "Closed c_pics"
     end
   end
 
-  @async begin
+  @spawn begin
     @sync try
       for (i, img) in c_pics
-        @spawn begin
-          hairies = sample_image_and_add_hairs(img, hairs, o, img_id = i)
-          for s in hairies
-            put!(c_outputs, s)
-          end
-          @info "Output $(length(hairies)) samples"
+        @spawn for s in sample_image_and_add_hairs(img, hairs, o, img_id = i)
+          put!(c_outputs, s)
         end
       end
     catch e
     end
     close(c_outputs)
-    @info "Done outputting to c_outputs"
   end
 
   noutputs = length(pics_fnames) * o.samples_per_pic
 
   p = Progress(noutputs, 0.2)
 
-
   for (i, j, sample, mask) in c_outputs
-    #      @info "Took $i,$j sample from c_outputs"
     basename = @sprintf("%06d-%06d", i, j)
-    fname, mask_fname = basename * "-I.jpg", basename * "-M.jpg"
+    fname, mask_fname = basename * ".jpg", basename * "-mask.jpg"
     save(joinpath(output_dir, fname), sample)
     save(joinpath(output_dir, mask_fname), mask)
     next!(p)
-
-    #@show n,noutputs
   end
-
-
-
 end

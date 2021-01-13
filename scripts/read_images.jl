@@ -8,9 +8,9 @@ function par_load_img()
   c_bindata = Channel(1000)
   c_images = Channel(1000)
 
-  path = "/home/pmilovanov/data/hair/hairy/exp/0107-01"
+  path = "/home/pmilovanov/data/hair/hairy/exp/0111-01"
   # path = "/home/pmilovanov/data/the_met/temp/oil_sample_100"
-  fnames = readdir(path, join = true)[1:1000]
+  fnames = readdir(path, join = true)
   @async begin
     for f in fnames
       try
@@ -41,7 +41,7 @@ function par_load_img()
     flush(stderr)
   end
 
-  println(Base.summarysize(v) / (2^20))
+  @info (ceil(Base.summarysize(v) / (2^20)))
 end
 
 
