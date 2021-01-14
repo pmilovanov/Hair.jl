@@ -12,7 +12,9 @@ function parse_flags()
     help = "Output to this JLD2 file"
   end
   args = parse_args(s)
-  for k=keys(args); args[k] = expanduser(args[k]); end
+  for k in keys(args)
+    args[k] = expanduser(args[k])
+  end
   args
 end
 

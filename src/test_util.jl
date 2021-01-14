@@ -13,5 +13,5 @@ function write_dummy_images_masks(N::Int, imgsize::Int)
   end
   return tdir
 end
- 
+
 end

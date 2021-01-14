@@ -4,27 +4,27 @@ using Base.Threads: @spawn
 
 "Like @async except it prints errors to the terminal."
 macro asynclog(expr)
-    quote
-        @async try
-            $(esc(expr))
-        catch ex
-            bt = stacktrace(catch_backtrace())
-            showerror(stderr, ex, bt)
-            rethrow(ex)
-        end
+  quote
+    @async try
+      $(esc(expr))
+    catch ex
+      bt = stacktrace(catch_backtrace())
+      showerror(stderr, ex, bt)
+      rethrow(ex)
     end
+  end
 end
 
 
 "Like @spawn except it prints errors to the terminal."
 macro spawnlog(expr)
-    quote
-        @spawn try
-            $(esc(expr))
-        catch ex
-            bt = stacktrace(catch_backtrace())
-            showerror(stderr, ex, bt)
-            rethrow(ex)
-        end
+  quote
+    @spawn try
+      $(esc(expr))
+    catch ex
+      bt = stacktrace(catch_backtrace())
+      showerror(stderr, ex, bt)
+      rethrow(ex)
     end
+  end
 end
