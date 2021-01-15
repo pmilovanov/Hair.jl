@@ -80,44 +80,83 @@ function conv_block(
   nunits::Int,
   k::Tuple{Int,Int},
   ch::Pair{<:Integer,<:Integer},
-  σ = identity;
+  σ = relu;
+  pad=SamePad(),
+  stride=1,
   kwargs...,
 ) where {N}
   chain = [Conv(k, ch, σ; kwargs...), BatchNorm(last(ch))]
   for i = 1:nunits-1
-    push!(chain, Conv(k, last(ch) => last(ch), σ; kwargs...))
+    push!(chain, Conv(k, last(ch) => last(ch), σ; pad=pad, stride=stride, kwargs...))
     push!(chain, BatchNorm(last(ch)))
   end
   Chain(chain...)
 end
 
+
+
+
 # Stolen from https://discourse.julialang.org/t/upsampling-in-flux-jl/25919/4
-function upsample(x)
-  ratio = (2, 2, 1, 1)
-  (h, w, c, n) = size(x)
-  y = similar(x, (1, ratio[1], 1, ratio[2], 1, 1))
-  fill!(y, 1)
-  z = reshape(x, (h, 1, w, 1, c, n)) .* y
-  reshape(permutedims(z, (2, 1, 4, 3, 5, 6)), size(x) .* ratio)
+# struct Upsample end
+
+# function upsample(x)
+#   ratio = (2, 2, 1, 1)
+#   (h, w, c, n) = size(x)
+#   y = similar(x, (ratio[1], 1, ratio[2], 1, 1, 1))
+#   fill!(y, 1)
+#   z = reshape(x, (1, h, 1, w, c, n)) .* y
+#   reshape(z, size(x) .* ratio)
+# end
+
+struct StackChannels{P,Q}
+  layer1::P
+  layer2::Q
+end
+Flux.@functor StackChannels
+function (s::StackChannels)(x::AbstractArray)
+  y1 = s.layer1(x)
+  y2 = s.layer2(x)
+  @show size(y1)
+  @show size(y2)
+  cat(y1, y2, dims=3)
 end
 
 function build_model(args::TrainArgs)
 
   maxpool = MaxPool((2, 2))
-  convs1 = conv_block(2, (3, 3), 3 => 64, relu, pad = (1, 1), stride = (1, 1))
+  convs1 = conv_block(2, (3, 3), 3 => 64, relu, pad = SamePad(), stride = 1)
   convs2 =
-    Chain(convs1, maxpool, conv_block(2, (3, 3), 64 => 128, relu, pad = (1, 1), stride = (1, 1)))
+    Chain(convs1, maxpool, conv_block(2, (3, 3), 64 => 128))
+
   convs3 =
-    Chain(convs2, maxpool, conv_block(3, (3, 3), 128 => 256, relu, pad = (1, 1), stride = (1, 1)))
+    Chain(convs2, maxpool, conv_block(3, (3, 3), 128 => 256))
+
   convs4 =
-    Chain(convs3, maxpool, conv_block(3, (3, 3), 256 => 512, relu, pad = (1, 1), stride = (1, 1)))
+    Chain(convs3, maxpool, conv_block(3, (3, 3), 256 => 512))
+
   convs5 =
-    Chain(convs4, maxpool, conv_block(3, (3, 3), 512 => 512, relu, pad = (1, 1), stride = (1, 1)))
+    Chain(convs4, maxpool, conv_block(3, (3, 3), 512 => 512))
 
-  convs5u4 = Chain(convs5, upsample, upsample, upsample, upsample)
-  convs3u2 = Chain(convs3, upsample, upsample)
+  # transpose conv, upsamples 2x
+  tconv(channels::Pair{Int,Int}) = Chain(
+    ConvTranspose((3, 3), channels, relu, pad = SamePad(), stride = 2),
+    BatchNorm(last(channels)),
+  )
 
-#  Chain(x->cat(convs5u4()
+  convs5u2 = Chain(
+    convs5,
+    tconv(512 => 256),
+    tconv(256 => 256)
+  )
+  
+  stacked1u2 = Chain(StackChannels(convs5u2, convs3),
+                     tconv(256=>64),
+                     ConvTranspose((3, 3), 64=>1, σ, pad = SamePad(), stride = 2))
+
+  return stacked1u2
+  #  convs3u2 = Chain(convs3, upsample, upsample)
+
+  #  Chain(x->cat(convs5u4()
 end
 
 
