@@ -81,13 +81,13 @@ function conv_block(
   k::Tuple{Int,Int},
   ch::Pair{<:Integer,<:Integer},
   σ = relu;
-  pad=SamePad(),
-  stride=1,
+  pad = (1,1),
+  stride = (1,1),
   kwargs...,
 ) where {N}
-  chain = [Conv(k, ch, σ; kwargs...), BatchNorm(last(ch))]
+  chain = [Conv(k, ch, σ; pad=pad, stride=stride, kwargs...), BatchNorm(last(ch))]
   for i = 1:nunits-1
-    push!(chain, Conv(k, last(ch) => last(ch), σ; pad=pad, stride=stride, kwargs...))
+    push!(chain, Conv(k, last(ch) => last(ch), σ; pad = pad, stride = stride, kwargs...))
     push!(chain, BatchNorm(last(ch)))
   end
   Chain(chain...)
@@ -97,16 +97,18 @@ end
 
 
 # Stolen from https://discourse.julialang.org/t/upsampling-in-flux-jl/25919/4
-# struct Upsample end
-
-# function upsample(x)
-#   ratio = (2, 2, 1, 1)
-#   (h, w, c, n) = size(x)
-#   y = similar(x, (ratio[1], 1, ratio[2], 1, 1, 1))
-#   fill!(y, 1)
-#   z = reshape(x, (1, h, 1, w, c, n)) .* y
-#   reshape(z, size(x) .* ratio)
-# end
+@with_kw struct Upsample
+  ratio::Tuple{Int, Int, Int, Int} = (2,2,1,1)
+end
+Flux.@functor Upsample
+function (u::Upsample)(x::AbstractArray)
+  ratio = u.ratio
+  (h, w, c, n) = size(x)
+  y = similar(x, (ratio[1], 1, ratio[2], 1, 1, 1))
+  fill!(y, 1)
+  z = reshape(x, (1, h, 1, w, c, n)) .* y
+  reshape(z, size(x) .* ratio)
+end
 
 struct StackChannels{P,Q}
   layer1::P
@@ -118,40 +120,61 @@ function (s::StackChannels)(x::AbstractArray)
   y2 = s.layer2(x)
   @show size(y1)
   @show size(y2)
-  cat(y1, y2, dims=3)
+  cat(y1, y2, dims = 3)
 end
 
-function build_model(args::TrainArgs)
+struct DebugPrintSize
+  name::AbstractString
+end
+Flux.@functor DebugPrintSize
+function (f::DebugPrintSize)(x::AbstractArray)
 
-  maxpool = MaxPool((2, 2))
-  convs1 = conv_block(2, (3, 3), 3 => 64, relu, pad = SamePad(), stride = 1)
-  convs2 =
-    Chain(convs1, maxpool, conv_block(2, (3, 3), 64 => 128))
+  @info "Output $(f.name): $(size(x))"
+  x
+end
 
-  convs3 =
-    Chain(convs2, maxpool, conv_block(3, (3, 3), 128 => 256))
+function build_model(args::TrainArgs=TrainArgs())
 
-  convs4 =
-    Chain(convs3, maxpool, conv_block(3, (3, 3), 256 => 512))
+  maxpool() = MaxPool((2, 2))
 
-  convs5 =
-    Chain(convs4, maxpool, conv_block(3, (3, 3), 512 => 512))
+  convs3 = Chain(
+    DebugPrintSize("conv0"),
+    conv_block(2, (3, 3), 3 => 64),
+    DebugPrintSize("convs1"),
+    maxpool(),
+    conv_block(3, (3, 3), 64 => 128),
+    DebugPrintSize("convs2"),
+    maxpool(),
+    conv_block(3, (3, 3), 128 => 256),
+    DebugPrintSize("convs3"),
+  )
+
+  convs5 = Chain(
+    convs3,
+    maxpool(),
+    conv_block(3, (3, 3), 256 => 512),
+    DebugPrintSize("convs4"),
+    maxpool(),
+    conv_block(3, (3, 3), 512 => 512),
+    DebugPrintSize("convs5"),
+  )
 
   # transpose conv, upsamples 2x
   tconv(channels::Pair{Int,Int}) = Chain(
-    ConvTranspose((3, 3), channels, relu, pad = SamePad(), stride = 2),
-    BatchNorm(last(channels)),
+    Upsample(),
+    Conv((3, 3), channels, relu, pad=SamePad(), stride=(1,1)),
   )
 
-  convs5u2 = Chain(
-    convs5,
-    tconv(512 => 256),
-    tconv(256 => 256)
+  convs5u2 = Chain(convs5, tconv(512 => 256), BatchNorm(256), tconv(256 => 256), BatchNorm(256), DebugPrintSize("convs5u2"))
+
+  stacked1u2 = Chain(
+    StackChannels(convs5u2, convs3),
+    tconv(512 => 64),
+    BatchNorm(256),
+    tconv(64=>1),
+
+    DebugPrintSize("stacked1u2")
   )
-  
-  stacked1u2 = Chain(StackChannels(convs5u2, convs3),
-                     tconv(256=>64),
-                     ConvTranspose((3, 3), 64=>1, σ, pad = SamePad(), stride = 2))
 
   return stacked1u2
   #  convs3u2 = Chain(convs3, upsample, upsample)
