@@ -1,6 +1,6 @@
 using Test
 using Hair, Hair.TestUtil
-using Images
+using Images, Flux
 
 H = Hair
 
@@ -42,4 +42,18 @@ end
   stack_layer = H.StackChannels(Conv((3,3), 3=>10, relu, pad=SamePad()),
                                 Conv((3,3), 3=>12, relu, pad=SamePad()))
   @test size(stack_layer(z)) == (256, 256, 22, 1)
+
+
+
+
+  
+  
+end
+
+
+@testset "ML funcs CUDA" begin
+  z = rand(Float32, (512, 512, 3, 1)) |> gpu
+  m = H.build_model() |> gpu
+  z2 = m(z) |> cpu
+  @test !all(z2 .== 0)
 end
