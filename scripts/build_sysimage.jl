@@ -1,3 +1,5 @@
+using Hair
+
 using ArgParse
 using Base.Threads
 using Distributed
@@ -23,9 +25,9 @@ using Revise
 using JuliaFormatter
 
 
-using Hair
 
-curdir=pwd()
+
+curdir = pwd()
 cd(@__DIR__)
 include("../test/runtests.jl")
 
@@ -60,10 +62,12 @@ try
       :TestImages,
       :Revise,
       :JuliaFormatter,
-      :Hair,
+      #:Hair,
     ],
-    sysimage_path="custom1.so",
+    sysimage_path = "custom1.so",
   )
+catch e
+  @error e
 finally
   cd(curdir)
 end

@@ -2,6 +2,7 @@ using Base.Iterators: partition
 using Flux.Data: DataLoader
 using Parameters: @with_kw
 using Flux, CUDA
+using Flux: throttle, binarycrossentropy
 if has_cuda()
   @info "CUDA is on"
 end
@@ -28,52 +29,30 @@ function load_data(datadir::String; bufsize::Int = 256)
   imgs, masks
 end
 
-nminibatches(X::Array{T,4}, batchsize::Int) where {T} = batchsize(X)[4] ÷ size
-
-
-function minibatch(batchid::Int, X::Array{T,4}, Y::Array{T,4}, batchsize::Int) where {T}
-  @assert batchid > 0
-  @assert batchid <= nminibatches(X, batchsize)
-  a, b = (batchid - 1) * batchsize + 1, batchid * batchsize
-  return @view(X[:, :, :, a:b]), @view(Y[:, :, :, a:b])
-end
-
-function test_train_split(
-  X::AbstractArray{T,4},
-  Y::AbstractArray{T,4},
-  test_ratio::Float64 = 0.05,
-) where {T}
-  @assert size(X)[4] == size(Y)[4]
-  len = size(X)[4]
-  boundary = len - convert(Int, ceil(test_ratio * Float64(len)))
-  X_train, Y_train = @view(X[:, :, :, 1:boundary]), @view(Y[:, :, :, 1:boundary])
-  X_test, Y_test = @view(X[:, :, :, boundary+1:len]), @view(Y[:, :, :, boundary+1:len])
-  X_train, Y_train, X_test, Y_test
-end
-
-@with_kw struct TrainArgs
+@with_kw mutable struct TrainArgs
   img_dir::String = "."
   lr::Float64 = 3e-3
+  throttle::Int = 1
   epochs::Int = 20
-  batch_size = 128
+  batch_size = 4
   image_size = 512
   savepath::String = "./"
-  test_set_ratio = 0.05
+  test_set_ratio = 0.01
 end
 
 function prepare_data(args::TrainArgs)
-  X, Y = gpu.(load_data(args.img_dir))
+  X, Y = load_data(args.img_dir)
   X_train, Y_train, X_test, Y_test = test_train_split(X, Y, args.test_set_ratio)
 
   trainset =
-    DataLoader((X_train, Y_train), batchsize = args.batch_size, shuffle = true, partial = false)
+    DataLoader((X_train, Y_train), batchsize = args.batch_size, shuffle = true, partial = false) |>
+    GPUDataLoader
   testset =
-    DataLoader((X_test, Y_test), batchsize = args.batch_size, shuffle = false, partial = false)
+    DataLoader((X_test, Y_test), batchsize = args.batch_size, shuffle = false, partial = false) |>
+    GPUDataLoader
 
   trainset, testset
 end
-
-
 
 function conv_block(
   nunits::Int,
@@ -90,43 +69,6 @@ function conv_block(
     push!(chain, BatchNorm(last(ch)))
   end
   Chain(chain...)
-end
-
-
-
-
-# Stolen from https://discourse.julialang.org/t/upsampling-in-flux-jl/25919/4
-@with_kw struct Upsample
-  ratio::Tuple{Int,Int,Int,Int} = (2, 2, 1, 1)
-end
-Flux.@functor Upsample
-function (u::Upsample)(x::AbstractArray)
-  ratio = u.ratio
-  (h, w, c, n) = size(x)
-  y = similar(x, (ratio[1], 1, ratio[2], 1, 1, 1))
-  fill!(y, 1)
-  z = reshape(x, (1, h, 1, w, c, n)) .* y
-  reshape(z, size(x) .* ratio)
-end
-
-struct StackChannels{P,Q}
-  layer1::P
-  layer2::Q
-end
-Flux.@functor StackChannels
-function (s::StackChannels)(x::AbstractArray)
-  y1 = s.layer1(x)
-  y2 = s.layer2(x)
-  cat(y1, y2, dims = 3)
-end
-
-struct DebugPrintSize
-  name::AbstractString
-end
-Flux.@functor DebugPrintSize
-function (f::DebugPrintSize)(x::AbstractArray)
-  @info "Output $(f.name): $(size(x))"
-  x
 end
 
 function build_model(args::TrainArgs = TrainArgs())
@@ -169,14 +111,32 @@ function build_model(args::TrainArgs = TrainArgs())
   )
 
   return stacked1u2
-  #  convs3u2 = Chain(convs3, upsample, upsample)
 
-  #  Chain(x->cat(convs5u4()
 end
 
+function train(; kwargs...)
+  args = TrainArgs()
+
+  args.img_dir = expanduser("~/data/hair/hairy/exp/0113-01")
+
+  @info "Loading data"
+  trainset, testset = prepare_data(args)
+
+  @info "Making model"
+  m = build_model(args) |> gpu
+
+  loss(x, y) = Flux.binarycrossentropy(m(x), y)
+
+  evalcb = throttle(() -> @show(loss(testset...)), args.throttle)
+  opt = ADAM(args.lr)
+  @info("Training....")
+  # Starting to train models
+  #Flux.@epochs args.epochs
+  Flux.train!(loss, params(m), trainset, opt, cb = evalcb)
+end
 
 # function main() end
 
 # if abspath(PROGRAM_FILE) == @__FILE__
-#   main()
+#    train()
 # end

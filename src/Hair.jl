@@ -1,12 +1,16 @@
 module Hair
 
-include("util.jl")
-include("synthetic.jl")
 include("img.jl")
-include("gendata.jl")
+include("util.jl")
+
 include("file.jl")
-include("train.jl")
+include("gendata.jl")
+
+include("nn.jl")
+include("synthetic.jl")
 include("test_util.jl")
+include("train.jl")
+
 
 export sample_image, GridStrategy
 

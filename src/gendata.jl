@@ -1,11 +1,12 @@
 # Functions to generate training data using stuff from img.jl
 
-using StatsBase
-using Base: @kwdef
 using Base.Threads: @spawn
-using ProgressMeter
+using Base: @kwdef
+using Images
 using Printf
+using ProgressMeter
 using Random: shuffle!
+using StatsBase
 
 abstract type SamplingStrategy end
 
