@@ -1,7 +1,7 @@
 using Test
 using Statistics, LinearAlgebra, Random
 using Hair
-H=Hair
+H = Hair
 
 
 @testset "gethair happy path" begin

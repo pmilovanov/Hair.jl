@@ -4,7 +4,6 @@ using Parameters: @with_kw
 using Flux, CUDA
 if has_cuda()
   @info "CUDA is on"
-  CUDA.allow_scalar(false)
 end
 
 function load_data(datadir::String; bufsize::Int = 256)

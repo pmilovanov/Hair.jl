@@ -29,7 +29,8 @@ end
 
 @testset "ML funcs" begin
 
-  @test repr(H.conv_block(3, (3, 3), 128 => 256, relu, pad = (1, 1), stride = (1, 1))) == repr(Chain(
+  @test repr(H.conv_block(3, (3, 3), 128 => 256, relu, pad = (1, 1), stride = (1, 1))) ==
+        repr(Chain(
     Conv((3, 3), 128 => 256, relu, pad = (1, 1), stride = (1, 1)),
     BatchNorm(256),
     Conv((3, 3), 256 => 256, relu, pad = (1, 1), stride = (1, 1)),
@@ -39,15 +40,17 @@ end
   ))
 
   z = rand(Float32, (256, 256, 3, 1))
-  stack_layer = H.StackChannels(Conv((3,3), 3=>10, relu, pad=SamePad()),
-                                Conv((3,3), 3=>12, relu, pad=SamePad()))
+  stack_layer = H.StackChannels(
+    Conv((3, 3), 3 => 10, relu, pad = SamePad()),
+    Conv((3, 3), 3 => 12, relu, pad = SamePad()),
+  )
   @test size(stack_layer(z)) == (256, 256, 22, 1)
 
 
 
 
-  
-  
+
+
 end
 
 
