@@ -3,6 +3,8 @@ using Flux.Data: DataLoader
 using Parameters: @with_kw
 using Flux, CUDA
 using Flux: throttle, logitbinarycrossentropy
+using Statistics
+using Printf
 if has_cuda()
   @info "CUDA is on"
   CUDA.allowscalar(false)
@@ -164,6 +166,44 @@ function testset_loss(loss, testset)
   return sum(losses) / length(losses)
 end
 
+# function iou(x::AbstractArray{T,N},y::AbstractArray{T,N}) where {T<:AbstractFloat,N}
+#   n_intersect = convert(T, product(size(x))) - sum(abs.(round.(x) .- round.(y)))
+#   n_union = 
+# end
+
+binfloat(x::AbstractArray{T,N}) where {T<:AbstractFloat,N} =
+  clamp.(round.(x), convert(T, 0), convert(T, 1))
+
+count1s(x::AbstractArray{T,N}) where {T<:AbstractFloat,N} =
+  sum(binfloat(x))
+
+function precision(ŷ::AbstractArray{T,N}, y::AbstractArray{T,N}) where {T<:AbstractFloat,N}
+  ŷr, yr = binfloat(ŷ), binfloat(y)
+  return sum(ŷr .* yr) / sum(ŷr)
+end
+
+function recall(ŷ::AbstractArray{T,N}, y::AbstractArray{T,N}) where {T<:AbstractFloat,N}
+  ŷr, yr = binfloat(ŷ), binfloat(y)
+  return sum(ŷr .* yr) / sum(yr)
+end
+
+precision(model, testset) = mean([precision(model(x), y) for (x,y) in testset])
+recall(model, testset) = mean([recall(model(x), y) for (x,y) in testset])
+
+function prf1(model, testset)
+  p, r = 0.0, 0.0
+  n = 0
+  for (x,y) in testset
+    ŷ = model(x)
+    p += precision(ŷ,y)
+    r += recall(ŷ,y)
+    n += 1
+  end
+  p, r = p/n, r/n
+  f1 = 2*p*r/(p+r)
+  return p, r, f1
+end
+
 function train(; kwargs...)
   args = TrainArgs()
 
@@ -183,9 +223,14 @@ function train(; kwargs...)
   @info("Training....")
   # Starting to train models
   for i = 1:args.epochs
-    @info "Epoch $i"
-    @time Flux.train!(loss, params(m), trainset, opt)
-    println("Test set loss: $(testset_loss(loss, testset)))")
+    Flux.train!(loss, params(m), trainset, opt)
+    #p,r,f1 = prf1(m, testset)
+    #@printf("Epoch %3d PRF1: %0.3f   %0.3f   %0.3f   --- ", i, p, r, f1)
+
+    @time f1= prf1(m, testset)
+    @show f1
+    @time f2 = prf1(m,trainset)
+    @show f2
   end
 end
 
