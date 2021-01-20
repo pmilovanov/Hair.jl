@@ -5,6 +5,9 @@ using Flux, CUDA
 using Flux: throttle, logitbinarycrossentropy
 using Statistics
 using Printf
+using MLDataPattern: splitobs, shuffleobs
+using ProgressMeter
+
 if has_cuda()
   @info "CUDA is on"
   CUDA.allowscalar(false)
@@ -45,6 +48,24 @@ end
 
 function prepare_data(args::TrainArgs)
   X, Y = load_data(args.img_dir)
+
+  filenames = [x for x in readdir(args.img_dir, join = true) if !contains(x, "-mask")]
+
+  train_fnames, test_fnames = splitobs(shuffleobs(filenames), at = (1 - args.test_set_ratio))
+
+  trainset =
+    ImageAndMaskLoader(train_fnames; batchsize = args.batch_size, bufsize = args.batch_size * 8) |>
+    GPUDataLoader
+  testset =
+    ImageAndMaskLoader(test_fnames; batchsize = args.batch_size, bufsize = args.batch_size * 8) |>
+    GPUDataLoader
+
+  trainset, testset
+end
+
+
+function prepare_data_old(args::TrainArgs)
+  X, Y = load_data(args.img_dir)
   X_train, Y_train, X_test, Y_test = test_train_split(X, Y, args.test_set_ratio)
 
   trainset =
@@ -56,6 +77,9 @@ function prepare_data(args::TrainArgs)
 
   trainset, testset
 end
+
+
+
 
 function conv_block(
   nunits::Int,
@@ -186,14 +210,17 @@ function train(; kwargs...)
   @info("Training....")
   # Starting to train models
   for i = 1:args.epochs
-    Flux.train!(loss, params(m), trainset, opt)
+    p = Progress(length(trainset))
+    Flux.train!(loss, params(m), trainset, opt, cb = () -> next!(p))
     #p,r,f1 = prf1(m, testset)
     #@printf("Epoch %3d PRF1: %0.3f   %0.3f   %0.3f   --- ", i, p, r, f1)
 
-    @time f1 = prf1(m, testset)
+    f1 = prf1(m, testset)
     @show f1
-    @time f2 = prf1(m, trainset)
-    @show f2
+    #    @time f2 = prf1(m, trainset)
+    #    @show f2
+
+    trainset, testset = reset(trainset), reset(testset)
   end
 end
 

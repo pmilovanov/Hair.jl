@@ -27,7 +27,7 @@ Returns (filename, image, mask) tuple.
 function read_images_masks(
   out::Channel,
   path::AbstractString = "";
-  filenames::Union{Array{<:AbstractString,1},Nothing} = nothing,
+  filenames::Union{AbstractArray{S,1},Nothing} where {S<:AbstractString} = nothing,
   mask_suffix::AbstractString = "-mask",
 )
   try
@@ -62,7 +62,7 @@ Decode image, mask binary blobs.
 function load_images_masks(input::Channel, output::Channel)
   try
     for (fname, img, mask) in input
-      put!(output, (fname, RGB.(readblob(img)), readblob(mask)))
+      put!(output, (fname, RGB{N0f8}.(readblob(img)), Gray{N0f8}.(readblob(mask))))
     end
   catch e
     @error e
