@@ -140,14 +140,14 @@ function make_hairy_squares(
   output_dir,
   o::MakeHairySquaresOptions = MakeHairySquaresOptions(),
 )
-  N_CHANNEL_PICS = 50
+  N_CHANNEL_PICS = 128
   c_pics = Channel(N_CHANNEL_PICS)
   c_outputs = Channel(N_CHANNEL_PICS * o.samples_per_pic)
 
   pics_fnames = shuffle(readdir(pics_dir))
   @info "Found $(length(pics_fnames)) images"
 
-  @asynclog begin
+  @spawnlog begin
     try
       for (i, fname) in enumerate(pics_fnames)
         put!(c_pics, (i, load(joinpath(pics_dir, fname))))
@@ -160,20 +160,23 @@ function make_hairy_squares(
   end
 
   @spawnlog begin
-    @sync try
-      for (i, img) in c_pics
+    try
+      @sync for (i, img) in c_pics
         @spawnlog for s in sample_image_and_add_hairs(img, hairs, o, img_id = i)
           put!(c_outputs, s)
         end
       end
     catch e
+    finally
+      close(c_outputs)
     end
-    close(c_outputs)
   end
 
+  
+  
   noutputs = length(pics_fnames) * o.samples_per_pic
 
-  p = Progress(noutputs, 0.2)
+  p = Progress(noutputs)
 
   for (i, j, sample, mask) in c_outputs
     basename = @sprintf("%06d-%06d", i, j)

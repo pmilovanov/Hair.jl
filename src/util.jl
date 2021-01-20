@@ -15,6 +15,21 @@ macro asynclog(expr)
   end
 end
 
+macro asynclog(channelexpr, expr)
+  quote
+    @async try
+      $(esc(expr))
+    catch ex
+      bt = stacktrace(catch_backtrace())
+      showerror(stderr, ex, bt)
+      rethrow(ex)
+    finally
+      close($(esc(channelexpr)))
+    end
+  end
+end
+
+
 
 "Like @spawn except it prints errors to the terminal."
 macro spawnlog(expr)
@@ -28,3 +43,18 @@ macro spawnlog(expr)
     end
   end
 end
+
+macro spawnlog(channelexpr, expr)
+  quote
+    @spawn try
+      $(esc(expr))
+    catch ex
+      bt = stacktrace(catch_backtrace())
+      showerror(stderr, ex, bt)
+      rethrow(ex)
+    finally
+      close($(esc(channelexpr)))
+    end
+  end
+end
+

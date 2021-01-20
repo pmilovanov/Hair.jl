@@ -47,8 +47,6 @@ end
 end
 
 function prepare_data(args::TrainArgs)
-  X, Y = load_data(args.img_dir)
-
   filenames = [x for x in readdir(args.img_dir, join = true) if !contains(x, "-mask")]
 
   train_fnames, test_fnames = splitobs(shuffleobs(filenames), at = (1 - args.test_set_ratio))
@@ -192,9 +190,9 @@ end
 
 
 function train(; kwargs...)
-  args = TrainArgs()
+  args = TrainArgs(test_set_ratio=0.05)
 
-  args.img_dir = expanduser("~/data/hair/hairy/exp/0119")
+  args.img_dir = expanduser("~/data/hair/hairy/exp/full128_0120")
 
   @info "Loading data"
   trainset, testset = prepare_data(args)

@@ -58,8 +58,8 @@ struct ImageAndMaskLoader
       bufsize,
       shuffle,
       size(sampleimg),
-      length(sampleimg[1, 1]),
-      Channel(bufsize),
+      3,
+      Channel(bufsize*4),
       Channel(bufsize),
     )
     @asynclog read_images_masks(this.c_blobs, filenames = filenames)

@@ -7,18 +7,19 @@ Closes channel after reading.
 
 Note: filename returned is a basename, not a full path.
 """
-function read_from_dir(c::Channel, path::AbstractString)
-  try
-    for f in readdir(path, join = true)
-      put!(c, (basename(f), read(f)))
-    end
-  catch e
-    @error e
-    rethrow(e)
-  finally
-    close(c)
+function async_read_from_dir(out::Channel, path::AbstractString)
+  @spawnlog out for f in readdir(path, join = true)
+    put!(out, (basename(f), read(f)))
   end
 end
+
+# function async_decode_images(input::Channel, output::Channel)
+#   @spawnlog output for bytes in input
+#     @spawnlog begin
+#       put!(output, 
+#     end
+#   end
+# end
 
 """
 Read images and corresponding masks as binary blobs from a dir to a channel.

@@ -9,8 +9,8 @@ function main()
   @load expanduser("~/data/hair/hair_db.jld2") hairs
   println("Loaded hairs")
 
-  indir = "/home/pmilovanov/data/the_met/temp/oil_sample_100"
-  outdir = "/home/pmilovanov/data/hair/hairy/exp/0119"
+  indir = "/home/pmilovanov/data/the_met/oil-zeros"
+  outdir = "/home/pmilovanov/data/hair/hairy/exp/full128_0120"
 
   if !isdir(outdir)
     mkdir(outdir)
@@ -20,7 +20,7 @@ function main()
     hairs,
     indir,
     outdir,
-    H.MakeHairySquaresOptions(samples_per_pic = 20, max_hairs_per_output = 5, square_size = 128),
+    H.MakeHairySquaresOptions(samples_per_pic = 20, max_hairs_per_output = 8, square_size = 128),
   )
   println("OK")
 end
