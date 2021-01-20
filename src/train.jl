@@ -94,7 +94,7 @@ function build_model(args::TrainArgs = TrainArgs())
 
   # transpose conv, upsamples 2x
   upsample_conv(channels::Pair{Int,Int}) =
-    Chain(Upsample(), Conv((3, 3), channels, relu, pad =SamePad(), stride = (1, 1)))
+    Chain(Upsample(), Conv((3, 3), channels, relu, pad = SamePad(), stride = (1, 1)))
 
   convs5u2 = Chain(
     convs5,
@@ -118,7 +118,7 @@ end
 function build_model_simple(args::TrainArgs = TrainArgs())
 
   maxpool() = MaxPool((2, 2))
-  
+
   convs3 = Chain(#  DebugPrintSize("conv0"),
     conv_block(2, (3, 3), 3 => 16), # DebugPrintSize("convs1"),
     maxpool(),
@@ -131,7 +131,7 @@ function build_model_simple(args::TrainArgs = TrainArgs())
     convs3,
     maxpool(),
     conv_block(3, (3, 3), 32 => 64),
- #   DebugPrintSize("convs4"),
+    #   DebugPrintSize("convs4"),
   )
 
   # transpose conv, upsamples 2x
@@ -142,18 +142,16 @@ function build_model_simple(args::TrainArgs = TrainArgs())
     convs4,
     upsample_conv(64 => 32),
     BatchNorm(32),
-#    DebugPrintSize("convs4u1"),
+    #    DebugPrintSize("convs4u1"),
   )
 
   stacked1u2 = Chain(
     StackChannels(convs4u1, convs3),
     upsample_conv(64 => 16),
-
     BatchNorm(16),
-
     Upsample(),
-    Conv((5, 5), 16=>1, σ, pad = SamePad(), stride = (1, 1))
-   #    DebugPrintSize("stacked1u2"),
+    Conv((5, 5), 16 => 1, σ, pad = SamePad(), stride = (1, 1)),
+    #    DebugPrintSize("stacked1u2"),
   )
 
   return stacked1u2
@@ -162,8 +160,8 @@ end
 
 
 function testset_loss(loss, testset)
-  losses = [loss(x,y) for (x,y) in testset]
-  return sum(losses)/length(losses)
+  losses = [loss(x, y) for (x, y) in testset]
+  return sum(losses) / length(losses)
 end
 
 function train(; kwargs...)
@@ -178,13 +176,13 @@ function train(; kwargs...)
   m = build_model_simple(args) |> gpu
 
   loss(x, y) = sum(Flux.Losses.binarycrossentropy(m(x), y))
-  loss(t::Tuple{X,X} where X) = loss(t...)
+  loss(t::Tuple{X,X} where {X}) = loss(t...)
 
 
   opt = ADAM(args.lr)
   @info("Training....")
   # Starting to train models
-  for i=1:args.epochs
+  for i = 1:args.epochs
     @info "Epoch $i"
     @time Flux.train!(loss, params(m), trainset, opt)
     println("Test set loss: $(testset_loss(loss, testset)))")

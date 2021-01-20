@@ -40,14 +40,14 @@ Differentiable layer to upsample a tensor.
   ratio::Tuple{Int,Int,Int,Int} = (2, 2, 1, 1)
 end
 Flux.@functor Upsample
-function (u::Upsample)(x::AbstractArray{Float32, N}) where N
+function (u::Upsample)(x::AbstractArray{Float32,N}) where {N}
   ratio = u.ratio
   (h, w, c, n) = size(x)
   y = fill(1.0f0, (ratio[1], 1, ratio[2], 1, 1, 1))
   z = reshape(x, (1, h, 1, w, c, n)) .* y
   reshape(z, size(x) .* ratio)
 end
-function (u::Upsample)(x::CuArray{Float32, N}) where N
+function (u::Upsample)(x::CuArray{Float32,N}) where {N}
   ratio = u.ratio
   (h, w, c, n) = size(x)
   y = CUDA.fill(1.0f0, (ratio[1], 1, ratio[2], 1, 1, 1))
@@ -55,7 +55,8 @@ function (u::Upsample)(x::CuArray{Float32, N}) where N
   CUDA.reshape(z, size(x) .* ratio)
 end
 
-Zygote.@adjoint CUDA.fill(x::Real, dims...) = CUDA.fill(x, dims...), Δ->(sum(Δ), map(_->nothing, dims)...)
+Zygote.@adjoint CUDA.fill(x::Real, dims...) =
+  CUDA.fill(x, dims...), Δ -> (sum(Δ), map(_ -> nothing, dims)...)
 
 """
 Layer to concat outputs of two layers along the channel dimension.

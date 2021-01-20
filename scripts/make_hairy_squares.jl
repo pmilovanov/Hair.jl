@@ -20,7 +20,7 @@ function main()
     hairs,
     indir,
     outdir,
-    H.MakeHairySquaresOptions(samples_per_pic = 20, max_hairs_per_output = 5, square_size=128),
+    H.MakeHairySquaresOptions(samples_per_pic = 20, max_hairs_per_output = 5, square_size = 128),
   )
   println("OK")
 end
