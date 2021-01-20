@@ -17,10 +17,12 @@ end
 Read images and corresponding masks as binary blobs from a dir to a channel.
 Returns (filename, image, mask) tuple.
 """
-function read_images_masks_from_dir(out::Channel, path::AbstractString, mask_suffix::AbstractString="-mask")
+function read_images_masks(out::Channel, path::AbstractString="", filenames::Union{Array{AbstractString,1},Nothing}=nothing; mask_suffix::AbstractString="-mask")
   try
-    fnames = [x for x in readdir(path) if !contains(x,mask_suffix)]
-    for f in fnames
+    if filenames==nothing
+      filenames = [x for x in readdir(path) if !contains(x,mask_suffix)]
+    end
+    for f in filenames
       noextname,ext = splitext(f)
       maskfname = joinpath(path, noextname*mask_suffix*ext)
       fname = joinpath(path, f)
@@ -31,6 +33,8 @@ function read_images_masks_from_dir(out::Channel, path::AbstractString, mask_suf
     close(out)
   end
 end
+
+read_images_masks_from_dir(out::Channel, path::AbstractString, mask_suffix::AbstractString="-mask") = read_images_masks(out, path; mask_suffix=mask_suffix)
 
 """
 Decode image, mask binary blobs.
