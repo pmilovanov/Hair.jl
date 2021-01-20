@@ -6,6 +6,8 @@ include("util.jl")
 include("file.jl")
 include("gendata.jl")
 
+
+include("dataloaders.jl")
 include("nn.jl")
 include("synthetic.jl")
 include("test_util.jl")

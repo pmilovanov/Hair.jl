@@ -3,6 +3,7 @@ using Flux.Data: DataLoader
 using Parameters: @with_kw
 using Zygote
 using CUDA
+using Statistics
 
 function test_train_split(
   X::AbstractArray{T,4},
@@ -15,15 +16,6 @@ function test_train_split(
   X_train, Y_train = @view(X[:, :, :, 1:boundary]), @view(Y[:, :, :, 1:boundary])
   X_test, Y_test = @view(X[:, :, :, boundary+1:len]), @view(Y[:, :, :, boundary+1:len])
   X_train, Y_train, X_test, Y_test
-end
-
-nminibatches(X::Array{T,4}, batchsize::Int) where {T} = batchsize(X)[4] ÷ size
-
-function minibatch(batchid::Int, X::Array{T,4}, Y::Array{T,4}, batchsize::Int) where {T}
-  @assert batchid > 0
-  @assert batchid <= nminibatches(X, batchsize)
-  a, b = (batchid - 1) * batchsize + 1, batchid * batchsize
-  return @view(X[:, :, :, a:b]), @view(Y[:, :, :, a:b])
 end
 
 
@@ -87,23 +79,38 @@ end
 
 
 ################################################################################
-# GPU data loader
+## Metrics
 ################################################################################
 
+binfloat(x::AbstractArray{T,N}) where {T<:AbstractFloat,N} =
+  clamp.(round.(x), convert(T, 0), convert(T, 1))
 
-struct GPUDataLoader{D}
-  inner::DataLoader{D}
+count1s(x::AbstractArray{T,N}) where {T<:AbstractFloat,N} =
+  sum(binfloat(x))
+
+function precision(ŷ::AbstractArray{T,N}, y::AbstractArray{T,N}) where {T<:AbstractFloat,N}
+  ŷr, yr = binfloat(ŷ), binfloat(y)
+  return sum(ŷr .* yr) / sum(ŷr)
 end
 
-function Base.iterate(d::GPUDataLoader, i = 0)
-  it = Base.iterate(d.inner, i)
-  if it == nothing
-    return nothing
-  else
-    data, nexti = it
-    return (gpu(data), nexti)
+function recall(ŷ::AbstractArray{T,N}, y::AbstractArray{T,N}) where {T<:AbstractFloat,N}
+  ŷr, yr = binfloat(ŷ), binfloat(y)
+  return sum(ŷr .* yr) / sum(yr)
+end
+
+precision(model, testset) = mean([precision(model(x), y) for (x,y) in testset])
+recall(model, testset) = mean([recall(model(x), y) for (x,y) in testset])
+
+function prf1(model, testset)
+  p, r = 0.0, 0.0
+  n = 0
+  for (x,y) in testset
+    ŷ = model(x)
+    p += precision(ŷ,y)
+    r += recall(ŷ,y)
+    n += 1
   end
+  p, r = p/n, r/n
+  f1 = 2*p*r/(p+r)
+  return p, r, f1
 end
-Base.length(d::GPUDataLoader) = Base.length(d.inner)
-
-Base.eltype(::GPUDataLoader{D}) where {D} = D

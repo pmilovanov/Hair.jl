@@ -166,43 +166,6 @@ function testset_loss(loss, testset)
   return sum(losses) / length(losses)
 end
 
-# function iou(x::AbstractArray{T,N},y::AbstractArray{T,N}) where {T<:AbstractFloat,N}
-#   n_intersect = convert(T, product(size(x))) - sum(abs.(round.(x) .- round.(y)))
-#   n_union = 
-# end
-
-binfloat(x::AbstractArray{T,N}) where {T<:AbstractFloat,N} =
-  clamp.(round.(x), convert(T, 0), convert(T, 1))
-
-count1s(x::AbstractArray{T,N}) where {T<:AbstractFloat,N} =
-  sum(binfloat(x))
-
-function precision(ŷ::AbstractArray{T,N}, y::AbstractArray{T,N}) where {T<:AbstractFloat,N}
-  ŷr, yr = binfloat(ŷ), binfloat(y)
-  return sum(ŷr .* yr) / sum(ŷr)
-end
-
-function recall(ŷ::AbstractArray{T,N}, y::AbstractArray{T,N}) where {T<:AbstractFloat,N}
-  ŷr, yr = binfloat(ŷ), binfloat(y)
-  return sum(ŷr .* yr) / sum(yr)
-end
-
-precision(model, testset) = mean([precision(model(x), y) for (x,y) in testset])
-recall(model, testset) = mean([recall(model(x), y) for (x,y) in testset])
-
-function prf1(model, testset)
-  p, r = 0.0, 0.0
-  n = 0
-  for (x,y) in testset
-    ŷ = model(x)
-    p += precision(ŷ,y)
-    r += recall(ŷ,y)
-    n += 1
-  end
-  p, r = p/n, r/n
-  f1 = 2*p*r/(p+r)
-  return p, r, f1
-end
 
 function train(; kwargs...)
   args = TrainArgs()
