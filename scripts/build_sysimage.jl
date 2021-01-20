@@ -6,7 +6,6 @@ using Distributed
 using Flux
 using CUDA
 using ImageMagick
-using ImageView
 using Images
 using Interpolations
 using JLD2
@@ -45,7 +44,6 @@ try
       :Flux,
       :CUDA,
       :ImageMagick,
-      :ImageView,
       :Images,
       :Interpolations,
       :JLD2,

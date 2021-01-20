@@ -2,9 +2,10 @@ using Base.Iterators: partition
 using Flux.Data: DataLoader
 using Parameters: @with_kw
 using Flux, CUDA
-using Flux: throttle, binarycrossentropy
+using Flux: throttle, logitbinarycrossentropy
 if has_cuda()
   @info "CUDA is on"
+  CUDA.allowscalar(false)
 end
 
 function load_data(datadir::String; bufsize::Int = 256)
@@ -34,10 +35,10 @@ end
   lr::Float64 = 3e-3
   throttle::Int = 1
   epochs::Int = 20
-  batch_size = 4
+  batch_size = 64
   image_size = 512
   savepath::String = "./"
-  test_set_ratio = 0.01
+  test_set_ratio = 0.2
 end
 
 function prepare_data(args::TrainArgs)
@@ -48,7 +49,7 @@ function prepare_data(args::TrainArgs)
     DataLoader((X_train, Y_train), batchsize = args.batch_size, shuffle = true, partial = false) |>
     GPUDataLoader
   testset =
-    DataLoader((X_test, Y_test), batchsize = args.batch_size, shuffle = false, partial = false) |>
+    DataLoader((X_test, Y_test), batchsize = args.batch_size, shuffle = false, partial = true) |>
     GPUDataLoader
 
   trainset, testset
@@ -93,7 +94,7 @@ function build_model(args::TrainArgs = TrainArgs())
 
   # transpose conv, upsamples 2x
   upsample_conv(channels::Pair{Int,Int}) =
-    Chain(Upsample(), Conv((3, 3), channels, relu, pad = SamePad(), stride = (1, 1)))
+    Chain(Upsample(), Conv((3, 3), channels, relu, pad =SamePad(), stride = (1, 1)))
 
   convs5u2 = Chain(
     convs5,
@@ -114,25 +115,80 @@ function build_model(args::TrainArgs = TrainArgs())
 
 end
 
+function build_model_simple(args::TrainArgs = TrainArgs())
+
+  maxpool() = MaxPool((2, 2))
+  
+  convs3 = Chain(#  DebugPrintSize("conv0"),
+    conv_block(2, (3, 3), 3 => 16), # DebugPrintSize("convs1"),
+    maxpool(),
+    conv_block(3, (3, 3), 16 => 24), # DebugPrintSize("convs2"),
+    maxpool(),
+    conv_block(3, (3, 3), 24 => 32),  #DebugPrintSize("convs3"),
+  )
+
+  convs4 = Chain(
+    convs3,
+    maxpool(),
+    conv_block(3, (3, 3), 32 => 64),
+ #   DebugPrintSize("convs4"),
+  )
+
+  # transpose conv, upsamples 2x
+  upsample_conv(channels::Pair{Int,Int}) =
+    Chain(Upsample(), Conv((5, 5), channels, relu, pad = SamePad(), stride = (1, 1)))
+
+  convs4u1 = Chain(
+    convs4,
+    upsample_conv(64 => 32),
+    BatchNorm(32),
+#    DebugPrintSize("convs4u1"),
+  )
+
+  stacked1u2 = Chain(
+    StackChannels(convs4u1, convs3),
+    upsample_conv(64 => 16),
+
+    BatchNorm(16),
+
+    Upsample(),
+    Conv((5, 5), 16=>1, σ, pad = SamePad(), stride = (1, 1))
+   #    DebugPrintSize("stacked1u2"),
+  )
+
+  return stacked1u2
+
+end
+
+
+function testset_loss(loss, testset)
+  losses = [loss(x,y) for (x,y) in testset]
+  return sum(losses)/length(losses)
+end
+
 function train(; kwargs...)
   args = TrainArgs()
 
-  args.img_dir = expanduser("~/data/hair/hairy/exp/0113-01")
+  args.img_dir = expanduser("~/data/hair/hairy/exp/0119")
 
   @info "Loading data"
   trainset, testset = prepare_data(args)
 
   @info "Making model"
-  m = build_model(args) |> gpu
+  m = build_model_simple(args) |> gpu
 
-  loss(x, y) = Flux.binarycrossentropy(m(x), y)
+  loss(x, y) = sum(Flux.Losses.binarycrossentropy(m(x), y))
+  loss(t::Tuple{X,X} where X) = loss(t...)
 
-  evalcb = throttle(() -> @show(loss(testset...)), args.throttle)
+
   opt = ADAM(args.lr)
   @info("Training....")
   # Starting to train models
-  #Flux.@epochs args.epochs
-  Flux.train!(loss, params(m), trainset, opt, cb = evalcb)
+  for i=1:args.epochs
+    @info "Epoch $i"
+    @time Flux.train!(loss, params(m), trainset, opt)
+    println("Test set loss: $(testset_loss(loss, testset)))")
+  end
 end
 
 # function main() end
