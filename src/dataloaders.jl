@@ -34,8 +34,8 @@ struct ImageAndMaskLoader
   imgsize::Tuple{Int,Int}
   imgnumchannels::Int
 
-  c_blobs::Channel{Array{UInt8,1}}
-  c_imgs::Channel{Array{FilenameImageMaskTuple,1}}
+  c_blobs::Channel #{Array{UInt8,1}}
+  c_imgs::Channel #{Array{FilenameImageMaskTuple,1}}
 
   function ImageAndMaskLoader(
     filenames::Array{String,1};
@@ -57,11 +57,13 @@ struct ImageAndMaskLoader
       bufsize,
       size(sampleimg),
       length(sampleimg[1, 1]),
-      Channel{Array{UInt8,1}}(bufsize),
-      Channel{Array{FilenameImageMaskTuple,1}}(bufsize),
+      Channel(bufsize),
+      Channel(bufsize)
     )
-    @asynclog read_images_masks(this.c_blobs, filenames)
+    @asynclog read_images_masks(this.c_blobs, filenames = filenames)
     @asynclog load_images_masks(this.c_blobs, this.c_imgs)
+
+    return this
   end
 end
 
@@ -82,5 +84,5 @@ function Base.iterate(d::ImageAndMaskLoader, i = 0)
     end
   end
 
-  return (X, Y), i + 1
+  return ((X, Y), i + 1)
 end
