@@ -1,5 +1,6 @@
 using Test
-using Hair; H = Hair
+using Hair;
+H = Hair;
 
 
 

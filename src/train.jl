@@ -190,9 +190,9 @@ function train(; kwargs...)
     #p,r,f1 = prf1(m, testset)
     #@printf("Epoch %3d PRF1: %0.3f   %0.3f   %0.3f   --- ", i, p, r, f1)
 
-    @time f1= prf1(m, testset)
+    @time f1 = prf1(m, testset)
     @show f1
-    @time f2 = prf1(m,trainset)
+    @time f2 = prf1(m, trainset)
     @show f2
   end
 end
