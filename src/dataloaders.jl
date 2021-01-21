@@ -7,10 +7,10 @@ using Flux.Data: DataLoader
 ################################################################################
 
 struct GPUDataLoader
-  inner # iterable
+  inner::Any # iterable
 end
 
-function Base.iterate(d, i = 0)
+function Base.iterate(d::GPUDataLoader, i = 0)
   it = Base.iterate(d.inner, i)
   if it == nothing
     return nothing
@@ -22,6 +22,43 @@ end
 Base.length(d::GPUDataLoader) = Base.length(d.inner)
 
 reset(d::GPUDataLoader) = GPUDataLoader(reset(d.inner))
+
+
+
+struct GPUBufDataLoader
+  inner::Any # iterable
+
+  bufsize::Int
+  chan::Channel
+
+  function GPUBufDataLoader(inner_loader, bufsize::Int)
+    this = new(inner_loader, bufsize, Channel(bufsize))
+    @spawnlog this.chan for data in this.inner
+      put!(this.chan, gpu(data))
+    end
+    this
+  end
+end
+
+function Base.iterate(d::GPUBufDataLoader, i = 0)
+  try
+    return (take!(d.chan), i + 1)
+  catch e
+    if isopen(d.chan)
+      rethrow(e)
+    end
+    return nothing
+  end
+end
+Base.length(d::GPUBufDataLoader) = Base.length(d.inner)
+
+function reset(d::GPUBufDataLoader)
+  if isopen(d.chan)
+    close(d.chan)
+  end
+  return GPUBufDataLoader(reset(d.inner), d.bufsize)
+end
+
 
 
 ################################################################################
@@ -59,7 +96,7 @@ struct ImageAndMaskLoader
       shuffle,
       size(sampleimg),
       3,
-      Channel(bufsize*4),
+      Channel(bufsize*2),
       Channel(bufsize),
     )
     @asynclog read_images_masks(this.c_blobs, filenames = filenames)

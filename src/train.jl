@@ -7,6 +7,8 @@ using Statistics
 using Printf
 using MLDataPattern: splitobs, shuffleobs
 using ProgressMeter
+using BSON: @save
+import Dates
 
 if has_cuda()
   @info "CUDA is on"
@@ -39,8 +41,8 @@ end
   img_dir::String = "."
   lr::Float64 = 3e-3
   throttle::Int = 1
-  epochs::Int = 20
-  batch_size = 64
+  epochs::Int = 100
+  batch_size = 32
   image_size = 512
   savepath::String = "./"
   test_set_ratio = 0.2
@@ -52,11 +54,10 @@ function prepare_data(args::TrainArgs)
   train_fnames, test_fnames = splitobs(shuffleobs(filenames), at = (1 - args.test_set_ratio))
 
   trainset =
-    ImageAndMaskLoader(train_fnames; batchsize = args.batch_size, bufsize = args.batch_size * 8) |>
-    GPUDataLoader
+    GPUBufDataLoader(ImageAndMaskLoader(train_fnames; batchsize = args.batch_size, bufsize = args.batch_size * 128), 4)
   testset =
-    ImageAndMaskLoader(test_fnames; batchsize = args.batch_size, bufsize = args.batch_size * 8) |>
-    GPUDataLoader
+       GPUBufDataLoader(ImageAndMaskLoader(test_fnames; batchsize = args.batch_size, bufsize = args.batch_size * 8), 4)
+
 
   trainset, testset
 end
@@ -189,10 +190,12 @@ function testset_loss(loss, testset)
 end
 
 
-function train(; kwargs...)
-  args = TrainArgs(test_set_ratio=0.05)
+function train(args::Union{Nothing,TrainArgs} ; kwargs...)
+  if args==nothing
+    args = TrainArgs(test_set_ratio=0.05, img_dir = expanduser("~/data/hair/hairy/exp/full128_0120"))
+  end
 
-  args.img_dir = expanduser("~/data/hair/hairy/exp/full128_0120")
+
 
   @info "Loading data"
   trainset, testset = prepare_data(args)
@@ -203,21 +206,36 @@ function train(; kwargs...)
   loss(x, y) = sum(Flux.Losses.binarycrossentropy(m(x), y))
   loss(t::Tuple{X,X} where {X}) = loss(t...)
 
-
+  model_dir = joinpath(args.savepath, Dates.format(Dates.now(), "yyyymmdd-HHMM"))
+  if !isdir(model_dir); mkdir(model_dir); end
+  
   opt = ADAM(args.lr)
   @info("Training....")
   # Starting to train models
+  f1_old = 0.0
+  
   for i = 1:args.epochs
-    p = Progress(length(trainset))
+    p = Progress(length(trainset), dt=1.0, desc="Epoch $i: ")
     Flux.train!(loss, params(m), trainset, opt, cb = () -> next!(p))
     #p,r,f1 = prf1(m, testset)
     #@printf("Epoch %3d PRF1: %0.3f   %0.3f   %0.3f   --- ", i, p, r, f1)
 
-    f1 = prf1(m, testset)
-    @show f1
-    #    @time f2 = prf1(m, trainset)
-    #    @show f2
+    p,r,f1= prf1(m, testset)
+    @printf("TEST  : P=%0.3f  R=%0.3f F1=%0.3f", p, r, f1)
 
+    if f1 > f1_old
+      modelfilename = joinpath(model_dir, @sprintf("epoch_%03d.bson",i))
+      @save modelfilename m
+      @info "Saved model to $modelfilename"
+    end    
+    
+    if mod(i,5)==0
+      trainset = reset(trainset)
+      p,r,f1 = prf1(m, trainset)
+      @printf("TRAIN : P=%0.3f  R=%0.3f F1=%0.3f", p, r, f1)
+    end
+    #    @show f2
+    
     trainset, testset = reset(trainset), reset(testset)
   end
 end
