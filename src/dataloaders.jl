@@ -1,5 +1,6 @@
 using Flux
 using Flux.Data: DataLoader
+using Images
 
 
 ################################################################################
@@ -132,3 +133,10 @@ function Base.iterate(d::ImageAndMaskLoader, i = 0)
 end
 
 Base.length(d::ImageAndMaskLoader) = length(d.filenames) ÷ d.batchsize
+
+
+function imgtoarray(img::Image)
+  img=imresize(img, 1024, 1024)
+  zimg = Float32.(Flux.unsqueeze(permutedims(channelview(img), [2,3,1]),4))
+  zimg
+end

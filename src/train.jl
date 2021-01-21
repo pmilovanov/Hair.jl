@@ -48,8 +48,10 @@ end
   test_set_ratio = 0.2
 end
 
+readdir_nomasks(dirpath::String) = [x for x in readdir(dirpath, join = true) if !contains(x, "-mask")]
+
 function prepare_data(args::TrainArgs)
-  filenames = [x for x in readdir(args.img_dir, join = true) if !contains(x, "-mask")]
+  filenames = readdir_nomasks(args.img_dir)
 
   train_fnames, test_fnames = splitobs(shuffleobs(filenames), at = (1 - args.test_set_ratio))
 
@@ -225,7 +227,8 @@ function train(args::Union{Nothing,TrainArgs} ; kwargs...)
 
     if f1 > f1_old
       modelfilename = joinpath(model_dir, @sprintf("epoch_%03d.bson",i))
-      @save modelfilename m
+      model = cpu(m)
+      @save modelfilename model
       @info "Saved model to $modelfilename"
     end    
     
@@ -238,6 +241,8 @@ function train(args::Union{Nothing,TrainArgs} ; kwargs...)
     
     trainset, testset = reset(trainset), reset(testset)
   end
+
+  return model_dir
 end
 
 # function main() end
