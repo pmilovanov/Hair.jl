@@ -97,7 +97,7 @@ struct ImageAndMaskLoader
       shuffle,
       size(sampleimg),
       3,
-      Channel(bufsize*2),
+      Channel(bufsize * 2),
       Channel(bufsize),
     )
     @asynclog read_images_masks(this.c_blobs, filenames = filenames)
@@ -135,8 +135,8 @@ end
 Base.length(d::ImageAndMaskLoader) = length(d.filenames) ÷ d.batchsize
 
 
-function imgtoarray(img::Image)
-  img=imresize(img, 1024, 1024)
-  zimg = Float32.(Flux.unsqueeze(permutedims(channelview(img), [2,3,1]),4))
+function imgtoarray(img::Image, side::Int = 1024)
+  img = imresize(img, side, side)
+  zimg = Float32.(Flux.unsqueeze(permutedims(channelview(img), [2, 3, 1]), 4))
   zimg
 end

@@ -7,8 +7,9 @@ using Statistics
 using Printf
 using MLDataPattern: splitobs, shuffleobs
 using ProgressMeter
-using BSON: @save
+using BSON: @load, @save
 import Dates
+using NNlib
 
 if has_cuda()
   @info "CUDA is on"
@@ -46,6 +47,7 @@ end
   image_size = 512
   savepath::String = "./"
   test_set_ratio = 0.2
+  previous_saved_model = nothing
 end
 
 readdir_nomasks(dirpath::String) = [x for x in readdir(dirpath, join = true) if !contains(x, "-mask")]
@@ -199,11 +201,18 @@ function train(args::Union{Nothing,TrainArgs} ; kwargs...)
 
 
 
-  @info "Loading data"
+  @info "Setting up data"
   trainset, testset = prepare_data(args)
 
-  @info "Making model"
-  m = build_model_simple(args) |> gpu
+  if args.previous_saved_model == nothing
+    @info "Making model"
+    m = build_model_simple(args) |> gpu
+  else
+    @info "Loading previous model"
+    Core.eval(Main, :(import NNlib))
+    @load args.previous_saved_model model
+    m = model |> gpu
+  end
 
   loss(x, y) = sum(Flux.Losses.binarycrossentropy(m(x), y))
   loss(t::Tuple{X,X} where {X}) = loss(t...)
@@ -250,3 +259,16 @@ end
 # if abspath(PROGRAM_FILE) == @__FILE__
 #    train()
 # end
+
+function infer_on_image(model, path::String, side::Int=1024, mask_threshold=-1.0)
+  img = load(path)
+  imgx = imgtoarray(img, side) |> gpu
+  y = cpu(model(imgx))[:,:,1,1]
+  if mask_threshold >= 0
+    y = y .> mask_threshold
+  end
+  imgy = Gray{N0f8}.(y)
+  return (img, imresize(imgy, size(img)...))
+end
+  
+

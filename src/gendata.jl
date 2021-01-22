@@ -143,46 +143,36 @@ function make_hairy_squares(
   N_CHANNEL_PICS = 128
   c_pics = Channel(N_CHANNEL_PICS)
   c_outputs = Channel(N_CHANNEL_PICS * o.samples_per_pic)
+  c_progress = Channel(N_CHANNEL_PICS * o.samples_per_pic * 2)
 
   pics_fnames = shuffle(readdir(pics_dir))
   @info "Found $(length(pics_fnames)) images"
 
-  @spawnlog begin
-    try
-      for (i, fname) in enumerate(pics_fnames)
-        put!(c_pics, (i, load(joinpath(pics_dir, fname))))
+  @spawnlog c_pics for (i, fname) in enumerate(pics_fnames)
+    put!(c_pics, (i, load(joinpath(pics_dir, fname))))
+  end
+
+  @spawnlog c_outputs begin
+    @sync for (i, img) in c_pics
+      @spawnlog for s in sample_image_and_add_hairs(img, hairs, o, img_id = i)
+        put!(c_outputs, s)
       end
-    catch e
-      @error e
-    finally
-      close(c_pics)
     end
   end
 
-  @spawnlog begin
-    try
-      @sync for (i, img) in c_pics
-        @spawnlog for s in sample_image_and_add_hairs(img, hairs, o, img_id = i)
-          put!(c_outputs, s)
-        end
-      end
-    catch e
-    finally
-      close(c_outputs)
+  @spawnlog c_progress for (i, j, sample, mask) in c_outputs
+    @spawnlog begin
+      basename = @sprintf("%06d-%06d", i, j)
+      fname, mask_fname = basename * ".jpg", basename * "-mask.jpg"
+      save(joinpath(output_dir, fname), sample)
+      save(joinpath(output_dir, mask_fname), mask)
+      put!(c_progress, 1)
     end
   end
-
-  
   
   noutputs = length(pics_fnames) * o.samples_per_pic
 
   p = Progress(noutputs)
 
-  for (i, j, sample, mask) in c_outputs
-    basename = @sprintf("%06d-%06d", i, j)
-    fname, mask_fname = basename * ".jpg", basename * "-mask.jpg"
-    save(joinpath(output_dir, fname), sample)
-    save(joinpath(output_dir, mask_fname), mask)
-    next!(p)
-  end
+  for _ in c_progress; next!(p); end
 end
