@@ -48,6 +48,9 @@ end
   savepath::String = "./"
   test_set_ratio = 0.2
   previous_saved_model = nothing
+
+
+  blocksizes=[2,3,3,3]
 end
 
 readdir_nomasks(dirpath::String) = [x for x in readdir(dirpath, join = true) if !contains(x, "-mask")]
@@ -58,9 +61,9 @@ function prepare_data(args::TrainArgs)
   train_fnames, test_fnames = splitobs(shuffleobs(filenames), at = (1 - args.test_set_ratio))
 
   trainset =
-    GPUBufDataLoader(ImageAndMaskLoader(train_fnames; batchsize = args.batch_size, bufsize = args.batch_size * 128), 4)
+    GPUBufDataLoader(ImageAndMaskLoader(train_fnames; batchsize = args.batch_size, bufsize = args.batch_size * 128), 2)
   testset =
-       GPUBufDataLoader(ImageAndMaskLoader(test_fnames; batchsize = args.batch_size, bufsize = args.batch_size * 8), 4)
+       GPUBufDataLoader(ImageAndMaskLoader(test_fnames; batchsize = args.batch_size, bufsize = args.batch_size * 8), 2)
 
 
   trainset, testset
@@ -149,17 +152,17 @@ function build_model_simple(args::TrainArgs = TrainArgs())
   maxpool() = MaxPool((2, 2))
 
   convs3 = Chain(#  DebugPrintSize("conv0"),
-    conv_block(2, (3, 3), 3 => 16), # DebugPrintSize("convs1"),
+    conv_block(args.blocksizes[1], (3, 3), 3 => 16), # DebugPrintSize("convs1"),
     maxpool(),
-    conv_block(3, (3, 3), 16 => 24), # DebugPrintSize("convs2"),
+    conv_block(args.blocksizes[2], (3, 3), 16 => 24), # DebugPrintSize("convs2"),
     maxpool(),
-    conv_block(3, (3, 3), 24 => 32),  #DebugPrintSize("convs3"),
+    conv_block(args.blocksizes[3], (3, 3), 24 => 32),  #DebugPrintSize("convs3"),
   )
 
   convs4 = Chain(
     convs3,
     maxpool(),
-    conv_block(3, (3, 3), 32 => 64),
+    conv_block(args.blocksizes[4], (3, 3), 32 => 64),
     #   DebugPrintSize("convs4"),
   )
 
@@ -260,9 +263,11 @@ end
 #    train()
 # end
 
-function infer_on_image(model, path::String, side::Int=1024, mask_threshold=-1.0)
+function infer_on_image(model, path::String, side::Int=1024, mask_threshold=-1.0; device=gpu)
+  model = device(model)
+  
   img = load(path)
-  imgx = imgtoarray(img, side) |> gpu
+  imgx = imgtoarray(img, side) |> device
   y = cpu(model(imgx))[:,:,1,1]
   if mask_threshold >= 0
     y = y .> mask_threshold
@@ -270,5 +275,38 @@ function infer_on_image(model, path::String, side::Int=1024, mask_threshold=-1.0
   imgy = Gray{N0f8}.(y)
   return (img, imresize(imgy, size(img)...))
 end
-  
 
+function place_overlay!(img::Image{T} where T, overlay::Image{Gray{G}} where G, mask_threshold=0.1, outline=true)
+  rimg = rawview(channelview(img))
+
+  if outline==true
+    binmask = overlay .> mask_threshold
+    for i=1:7; dilate!(binmask); end
+
+    outline = copy(binmask)
+    for i=1:3; dilate!(outline); end
+
+    outline = outline .* (.!binmask)
+    overlay = convert.(eltype(overlay), outline)
+  end
+
+  roverlay = rawview(channelview(overlay))    
+  rimg[1,:,:] = max.(rimg[1,:,:], roverlay)
+  
+  img
+end
+
+
+function infer_overlay(model, path::String, side::Int=1024, mask_threshold=0.1; device=gpu)
+  img, mask = infer_on_image(model, path, side, mask_threshold, device=device)
+
+  overlay = place_overlay!(copy(img), mask)
+  return (img, overlay)
+end
+
+
+
+function latestmodel(;dir=expanduser("~/data/hair/models"), modelid=nothing, epoch=0)
+  modeldir = (modelid==nothing) ? sort(readdir(expanduser(dir), join=true),rev=true)[1] : joinpath(dir, modelid)
+  return (epoch==0) ? sort(readdir(modeldir, join=true),rev=true)[1] : joinpath(modeldir, @sprintf("epoch_%03d.bson", epoch))
+end
