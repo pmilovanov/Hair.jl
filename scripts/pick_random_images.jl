@@ -31,7 +31,7 @@ function main(;inputdir::String, outputdir::String, nimages::Int, prefix=nothing
   if !isdir(outputdir); mkpath(outputdir); end
 
   p = Progress(nimages)
-  fnames = readdir(inputdir, join=true)
+  fnames = [fname for fname in readdir(inputdir, join=true) if (contains(fname, ".jpg") || contains(fname, ".jpeg"))]
   for src in sample(fnames, nimages, replace=false)
     dest = basename(src)
     if prefix != nothing; dest = "$(prefix)_$(dest)"; end
