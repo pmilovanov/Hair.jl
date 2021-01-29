@@ -4,7 +4,7 @@ using Flux, NNlib
 using BSON: @load, @save
 using Images, ImageView, MosaicViews
 
-show_infer_overlay(gmodel, imgpath, size=2048; device=gpu) = imshow(H.infer_overlay(gmodel, imgpath, size, device=device)[2])
+show_infer_overlay(gmodel, imgpath; kwargs...) = imshow(H.infer_overlay(gmodel, imgpath; kwargs...)[2])
 
 
 function show_infer_overlay3(gmodel, imgpath; device=gpu, nrow=1)

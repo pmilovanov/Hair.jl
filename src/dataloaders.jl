@@ -135,8 +135,12 @@ end
 Base.length(d::ImageAndMaskLoader) = length(d.filenames) ÷ d.batchsize
 
 
-function imgtoarray(img::Image, side::Int = 1024)
-  img = imresize(img, side, side)
-  zimg = Float32.(Flux.unsqueeze(permutedims(channelview(img), [2, 3, 1]), 4))
-  zimg
+imgtoarray(img::Image) = Float32.(Flux.unsqueeze(permutedims(channelview(img), [2, 3, 1]), 4))
+
+
+function imgtoarray(img::Image, side::Int)
+  if size(img) != (side, side)
+    img = imresize(img, side, side)
+  end
+  imgtoarray(img)
 end

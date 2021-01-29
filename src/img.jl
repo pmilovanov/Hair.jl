@@ -24,7 +24,7 @@ y2(b::BBox) = b[2][2]
 
 torange(b::BBox) = [x1(b):x2(b), y1(b):y2(b)]
 
-const Image{T} = Array{T,2} where {T}
+const Image{T} = A where {A <: AbstractArray{T,2}} where {T}
 const OAImage{T} = OffsetArray{T,2,Array{T,2}} where {T}
 const AnyImage{T} = Union{Image{T},OAImage{T}} where {T}
 const ImageMask = BitArray{2}

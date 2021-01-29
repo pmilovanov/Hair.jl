@@ -20,7 +20,7 @@ sample_image(img::Image{T}, s::S) where {T,S<:SamplingStrategy} = error("Not imp
 end
 
 
-function sample_image(img::Image, s::GridStrategy)
+function sample_image_w_coords(img::Image, s::GridStrategy)
   if any(size(img) .< s.side)
     return []
   end
@@ -50,8 +50,10 @@ function sample_image(img::Image, s::GridStrategy)
   samples =
     (s.n == 0 || s.n == length(candidates)) ? candidates : [sample(candidates) for i = 1:s.n]
 
-  [img[c[1]:c[1]+s.side-1, c[2]:c[2]+s.side-1] for c in samples]
+  [(c, @view(img[c[1]:c[1]+s.side-1, c[2]:c[2]+s.side-1])) for c in samples]
 end
+
+sample_image(img::Image, s::GridStrategy) = [last(c) for c in sample_image_w_coords(img, s)] 
 
 function gen_single_hairs(
   img::Image;

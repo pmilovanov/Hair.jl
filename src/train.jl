@@ -263,6 +263,84 @@ end
 #    train()
 # end
 
+function infer_old(model, image::Image{RGB{Float32}}; inference_side::Int=1024, device=gpu)
+  model = device(model)
+  newsize = convert.(Int, ceil.(size(image) ./ inference_side)) .* inference_side
+  needresize = (size(image) != newsize)
+  newimg = needresize ? imresize(image, newsize) : image
+
+  step::Int = inference_side ÷ 2
+  h=size(image)[1]/step - 1
+  w=size(image)[2]/step - 1
+
+  Ys = zeros(Float32, newsize...)
+
+  for i = 1:h
+    for j = 1:w
+      (x0, x1) = convert.(Int, (i-1, i+1) .* step .+ (1, 0))
+      (y0, y1) = convert.(Int, (j-1, j+1) .* step .+ (1, 0))
+
+      X = device(imgtoarray(newimg[x0:x1, y0:y1]))
+      Y = cpu(model(X))
+      Ys[x0:x1, y0:y1] .= max.(Ys[x0:x1, y0:y1], Y[:,:, 1, 1])
+     
+      #Ys[x0:x1, y0:y1] .= Y[inference_side, inference_side, 1, 1]
+    end
+  end
+
+  outimg = Gray{Float32}.(Ys)
+  return needresize ? imresize(outimg, size(image)) : outimg
+end
+
+function infer(model, image::Image{RGB{Float32}}; inference_side::Int=1024, overlap=512, batchsize=4, device=gpu)
+  model = device(model)
+
+  step::Int = inference_side ÷ 2
+  h=size(image)[1]/step - 1
+  w=size(image)[2]/step - 1
+
+  Ys = zeros(Float32, size(image)...)
+
+  subimages = sample_image_w_coords(image, GridStrategy(side=inference_side, overlap=overlap, cover_edges=true))
+
+  while true
+    done = false
+    coords=zeros(Int, batchsize, 2)
+    X = zeros(Float32, inference_side, inference_side, 3, batchsize)
+    try
+      for i = 1:batchsize
+        subimage = pop!(subimages)
+        coords[i,:] .= first(subimage)
+        X[:,:,:,i] .= imgtoarray(last(subimage))[:,:,:,1]
+      end
+    catch e
+      @assert isa(e, ArgumentError)
+      done = true
+    end
+
+    X = X |> device
+    Y = model(X) |> cpu
+    
+    for i = 1:batchsize
+      x0,y0 = coords[i, :]
+      if (x0,y0)==(0,0); break; end
+      x1,y1 = (x0,y0) .+ inference_side .-1
+      Ys[x0:x1, y0:y1] .= max.(Ys[x0:x1, y0:y1], Y[:,:,1,i])
+    end
+    
+    if done; break; end
+  end
+
+  return Gray{Float32}.(Ys)
+end
+
+
+
+function infer(model, path::String; kwargs...)
+  img = RGB{Float32}.(load(path))
+  (img, infer(model, img; kwargs...))
+end
+
 function infer_on_image(model, path::String, side::Int=1024, mask_threshold=-1.0; device=gpu)
   model = device(model)
   
@@ -297,8 +375,11 @@ function place_overlay!(img::Image{T} where T, overlay::Image{Gray{G}} where G, 
 end
 
 
-function infer_overlay(model, path::String, side::Int=1024, mask_threshold=0.1; device=gpu)
-  img, mask = infer_on_image(model, path, side, mask_threshold, device=device)
+function infer_overlay(model, path::String, side::Int=1024, mask_threshold=0.1; kwargs...)
+  img, mask = infer(model, path; kwargs...)
+  @show size(mask)
+  @show size(img)
+  mask = Gray.(mask .> mask_threshold)
 
   overlay = place_overlay!(copy(img), mask)
   return (img, overlay)
