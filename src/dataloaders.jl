@@ -144,3 +144,8 @@ function imgtoarray(img::Image, side::Int)
   end
   imgtoarray(img)
 end
+
+
+function arraytoimg(arr::AbstractArray{T,3}) where T
+  colorview(RGB, permuteddimsview(arr, (3,1,2)))
+end

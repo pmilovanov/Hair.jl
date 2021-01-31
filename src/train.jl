@@ -151,6 +151,11 @@ function build_model_simple(args::TrainArgs = TrainArgs())
 
   maxpool() = MaxPool((2, 2))
 
+  # transpose conv, upsamples 2x
+  upsample_conv(channels::Pair{Int,Int}) =
+    Chain(Upsample(), Conv((5, 5), channels, relu, pad = SamePad(), stride = (1, 1)))
+
+  
   convs3 = Chain(#  DebugPrintSize("conv0"),
     conv_block(args.blocksizes[1], (3, 3), 3 => 16), # DebugPrintSize("convs1"),
     maxpool(),
@@ -159,26 +164,17 @@ function build_model_simple(args::TrainArgs = TrainArgs())
     conv_block(args.blocksizes[3], (3, 3), 24 => 32),  #DebugPrintSize("convs3"),
   )
 
-  convs4 = Chain(
-    convs3,
+  convs4u1 = Chain(
     maxpool(),
     conv_block(args.blocksizes[4], (3, 3), 32 => 64),
     #   DebugPrintSize("convs4"),
-  )
-
-  # transpose conv, upsamples 2x
-  upsample_conv(channels::Pair{Int,Int}) =
-    Chain(Upsample(), Conv((5, 5), channels, relu, pad = SamePad(), stride = (1, 1)))
-
-  convs4u1 = Chain(
-    convs4,
     upsample_conv(64 => 32),
     BatchNorm(32),
     #    DebugPrintSize("convs4u1"),
   )
 
   stacked1u2 = Chain(
-    StackChannels(convs4u1, convs3),
+    SkipUnit(convs3, convs4u1),
     upsample_conv(64 => 16),
     BatchNorm(16),
     Upsample(),
@@ -228,7 +224,7 @@ function train(args::Union{Nothing,TrainArgs} ; kwargs...)
   # Starting to train models
   f1_old = 0.0
   
-  for i = 1:args.epochs
+  CUDA.@profile for i = 1:args.epochs
     p = Progress(length(trainset), dt=1.0, desc="Epoch $i: ")
     Flux.train!(loss, params(m), trainset, opt, cb = () -> next!(p))
     #p,r,f1 = prf1(m, testset)

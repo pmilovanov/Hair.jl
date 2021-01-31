@@ -65,6 +65,23 @@ function (s::StackChannels)(x::AbstractArray)
   cat(y1, y2, dims = 3)
 end
 
+
+stack_channels(x1::AbstractArray, x2::AbstractArray) = cat(x1, x2, dims=3)
+struct SkipUnit{P,Q,F}
+  trunk::P
+  branch::Q
+  combine_fn::F
+end
+SkipUnit(trunk,branch) = SkipUnit(trunk, branch, stack_channels)
+
+Flux.@functor SkipUnit
+function (s::SkipUnit)(x::AbstractArray)
+  y_trunk = s.trunk(x)
+  y_branch = s.branch(y_trunk)
+  return s.combine_fn(y_trunk, y_branch)
+end
+
+
 """
 Passthrough debugging layer that prints size of its input.
 """
