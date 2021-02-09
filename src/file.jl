@@ -7,7 +7,7 @@ Closes channel after reading.
 
 Note: filename returned is a basename, not a full path.
 """
-function async_read_from_dir(out::Channel, path::AbstractString)
+function async_read_from_dir(out::AbstractChannel, path::AbstractString)
   @spawnlog out for f in readdir(path, join = true)
     put!(out, (basename(f), read(f)))
   end
@@ -26,7 +26,7 @@ Read images and corresponding masks as binary blobs from a dir to a channel.
 Returns (filename, image, mask) tuple.
 """
 function read_images_masks(
-  out::Channel,
+  out::AbstractChannel,
   path::AbstractString = "";
   filenames::Union{AbstractArray{S,1},Nothing} where {S<:AbstractString} = nothing,
   mask_suffix::AbstractString = "-mask",
@@ -49,7 +49,7 @@ function read_images_masks(
 end
 
 read_images_masks_from_dir(
-  out::Channel,
+  out::AbstractChannel,
   path::AbstractString,
   mask_suffix::AbstractString = "-mask",
 ) = read_images_masks(out, path; mask_suffix = mask_suffix)
@@ -60,7 +60,7 @@ Decode image, mask binary blobs.
 - input: channel of (filename, image_blob, mask_blob) tuples
 - output: channel of (filename, image, mask) tuples
 """
-function load_images_masks(input::Channel, output::Channel)
+function load_images_masks(input::AbstractChannel, output::AbstractChannel)
   try
     for (fname, img, mask) in input
       put!(output, (fname, RGB{N0f8}.(readblob(img)), Gray{N0f8}.(readblob(mask))))

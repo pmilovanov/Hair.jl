@@ -17,8 +17,8 @@ import Base.isbuffered,
   Base.take!,
   Base.eltype,
   Base.bind,
-Base.show,
-Base.iterate
+  Base.show,
+  Base.iterate
 
 
 
@@ -92,7 +92,7 @@ struct TrackingChannel{T} <: AbstractChannel{T}
   tracker::StatsTracker
 end
 
-@forward TrackingChannel.chan (
+@forward TrackingChannel.ch (
   Base.isbuffered,
   Base.check_channel_state,
   Base.close,
@@ -103,13 +103,13 @@ end
   Base.lock,
   Base.unlock,
   Base.trylock,
-  Base.wait
+  Base.wait,
 )
 
 Base.eltype(::Type{TrackingChannel{T}}) where {T} = T
 Base.bind(c::TrackingChannel, task::Task) = bind(c.chan, task)
 
-Base.show(io::IO, c::TrackingChannel) = print(io, typeof(c), "[id=$(id), chan=$(chan)]")
+Base.show(io::IO, c::TrackingChannel) = print(io, typeof(c), "[id=$(c.id), chan=$(c.ch)]")
 
 report!(c::TrackingChannel, name::String, value::Number) =
   report!(c.tracker, "$(c.id)__$(name)", value)
@@ -138,14 +138,14 @@ function Base.take!(c::TrackingChannel)
   result
 end
 
-function Base.iterate(c::TrackingChannel, state=nothing)
-    try
-        return (take!(c), nothing)
-    catch e
-        if isa(e, InvalidStateException) && e.state === :closed
-            return nothing
-        else
-            rethrow()
-        end
+function Base.iterate(c::TrackingChannel, state = nothing)
+  try
+    return (take!(c), nothing)
+  catch e
+    if isa(e, InvalidStateException) && e.state === :closed
+      return nothing
+    else
+      rethrow()
     end
+  end
 end
