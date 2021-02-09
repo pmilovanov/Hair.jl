@@ -45,7 +45,7 @@ end
   train_fnames, test_fnames = splitobs(shuffleobs(filenames), 0.8)
   loader = H.ImageAndMaskLoader(train_fnames, batchsize = 30, bufsize = 10, shuffle = true)
 
-  for i=1:2
+  for i = 1:2
     @test length(loader) == 5
     n = 0
     for (x, y) in loader

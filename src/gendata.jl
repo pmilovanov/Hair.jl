@@ -53,7 +53,7 @@ function sample_image_w_coords(img::Image, s::GridStrategy)
   [(c, @view(img[c[1]:c[1]+s.side-1, c[2]:c[2]+s.side-1])) for c in samples]
 end
 
-sample_image(img::Image, s::GridStrategy) = [last(c) for c in sample_image_w_coords(img, s)] 
+sample_image(img::Image, s::GridStrategy) = [last(c) for c in sample_image_w_coords(img, s)]
 
 function gen_single_hairs(
   img::Image;
@@ -171,10 +171,12 @@ function make_hairy_squares(
       put!(c_progress, 1)
     end
   end
-  
+
   noutputs = length(pics_fnames) * o.samples_per_pic
 
   p = Progress(noutputs)
 
-  for _ in c_progress; next!(p); end
+  for _ in c_progress
+    next!(p)
+  end
 end

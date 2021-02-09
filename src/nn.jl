@@ -66,13 +66,13 @@ function (s::StackChannels)(x::AbstractArray)
 end
 
 
-stack_channels(x1::AbstractArray, x2::AbstractArray) = cat(x1, x2, dims=3)
+stack_channels(x1::AbstractArray, x2::AbstractArray) = cat(x1, x2, dims = 3)
 struct SkipUnit{P,Q,F}
   trunk::P
   branch::Q
   combine_fn::F
 end
-SkipUnit(trunk,branch) = SkipUnit(trunk, branch, stack_channels)
+SkipUnit(trunk, branch) = SkipUnit(trunk, branch, stack_channels)
 
 Flux.@functor SkipUnit
 function (s::SkipUnit)(x::AbstractArray)

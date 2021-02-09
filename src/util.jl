@@ -57,4 +57,3 @@ macro spawnlog(channelexpr, expr)
     end
   end
 end
-

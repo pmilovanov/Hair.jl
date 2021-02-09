@@ -24,7 +24,7 @@ y2(b::BBox) = b[2][2]
 
 torange(b::BBox) = [x1(b):x2(b), y1(b):y2(b)]
 
-const Image{T} = A where {A <: AbstractArray{T,2}} where {T}
+const Image{T} = A where {A<:AbstractArray{T,2}} where {T}
 const OAImage{T} = OffsetArray{T,2,Array{T,2}} where {T}
 const AnyImage{T} = Union{Image{T},OAImage{T}} where {T}
 const ImageMask = BitArray{2}
@@ -61,8 +61,8 @@ function components(img::ImageMask; minarea::Int = 0)
   boxes = component_boxes(cc)
   results = sort(
     [
-      Component(i, len_i, box_i, imgslice(cc, box_i) .== i - 1)
-      for (i, (len_i, box_i)) in enumerate(zip(lengths, boxes)) if len_i > minarea
+      Component(i, len_i, box_i, imgslice(cc, box_i) .== i - 1) for
+      (i, (len_i, box_i)) in enumerate(zip(lengths, boxes)) if len_i > minarea
     ],
     rev = true,
   )[2:end]
@@ -233,8 +233,8 @@ function matte_with_color(img::Image{C}, matte::C)::Image{TransparentColor{C}} w
   matte = convert(ccolor(Color{Float64}, typeof(matte)), matte)
   function mattepixel(pixel::Color)
     alphas = [
-      α_lower_bound(getfield(pixel, channel), getfield(matte, channel))
-      for channel = 1:length(pixel)
+      α_lower_bound(getfield(pixel, channel), getfield(matte, channel)) for
+      channel = 1:length(pixel)
     ]
     α = max(alphas...)
 

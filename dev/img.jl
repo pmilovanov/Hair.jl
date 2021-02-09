@@ -7,13 +7,15 @@ H = Hair
 imneg(img) = 1 .- img
 
 
-hairmos(img, comps, i, ncolumns) = imshow(Hair.compmosaic(
-  img,
-  comps[i:(i+ncolumns*ncolumns-1)],
-  ncol = ncolumns,
-  nrow = ncolumns,
-  fillvalue = Gray{N0f8}(1.0),
-))
+hairmos(img, comps, i, ncolumns) = imshow(
+  Hair.compmosaic(
+    img,
+    comps[i:(i+ncolumns*ncolumns-1)],
+    ncol = ncolumns,
+    nrow = ncolumns,
+    fillvalue = Gray{N0f8}(1.0),
+  ),
+)
 
 hair_img = load(ENV["HOME"] * "/data/hair/scratch/cropped.png")
 #img= load(ENV["HOME"] * "/data/hair/scans/out0014.png")

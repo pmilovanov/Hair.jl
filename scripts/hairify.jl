@@ -1,7 +1,7 @@
 
 include("loadenv.jl")
 
-@load H.latestmodel(dir="~/data/hair/models/5555") model
+@load H.latestmodel(dir = "~/data/hair/models/5555") model
 
 function optfn(x)
   z = gmodel(x)
@@ -13,7 +13,7 @@ opt = ADAM(3e-3)
 lr = 0.01f0
 
 img = testimage("lena")
-X = H.imgtoarray(imresize(img, (512,512))) |> gpu
+X = H.imgtoarray(imresize(img, (512, 512))) |> gpu
 
 for i = 1:300
   g = gradient(optfn, X)

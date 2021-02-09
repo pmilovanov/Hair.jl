@@ -1,6 +1,5 @@
 using Images
-using Hair
-H = Hair
+import Hair
 
 using Test
 using TestImages
