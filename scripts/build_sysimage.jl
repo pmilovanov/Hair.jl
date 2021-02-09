@@ -1,3 +1,7 @@
+import Pkg
+
+Pkg.precompile()
+
 using Hair
 
 using ArgParse
@@ -62,7 +66,7 @@ try
       :JuliaFormatter,
       #:Hair,
     ],
-    sysimage_path = "custom1.so",
+    sysimage_path = "custom1.6.so",
   )
 catch e
   @error e

@@ -91,7 +91,7 @@ function t_random(; scale = (0.25, 1), θ = (0, 2π), opacity = (0.6, 1), invert
 end
 
 
-function put_hairs(dest::Image, n::Int, allhairs::Array{Image{T},1} where {T}, transform_fn)
+function put_hairs(dest::Image, n::Int, allhairs::Array{<:Image{T},1} where {T}, transform_fn)
   dest = copy(dest)
   mask = zeros(Gray{eltype(eltype(dest))}, size(dest))
 
@@ -119,7 +119,7 @@ end
 
 function sample_image_and_add_hairs(
   img::Image,
-  hairs::Array{Image{T},1} where {T},
+  hairs::Vector{<:Image{T}} where {T},
   o::MakeHairySquaresOptions = MakeHairySquaresOptions();
   img_id::Int = 0,
 )
