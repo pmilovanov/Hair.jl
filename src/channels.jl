@@ -1,100 +1,151 @@
 using Lazy: @forward
+using Base.Threads: @spawn
+
+import Base.isbuffered,
+  Base.check_channel_state,
+  Base.close,
+  Base.isopen,
+  Base.isready,
+  Base.n_avail,
+  Base.isempty,
+  Base.lock,
+  Base.unlock,
+  Base.trylock,
+  Base.wait,
+  Base.put!,
+  Base.fetch,
+  Base.take!,
+  Base.eltype,
+  Base.bind,
+Base.show,
+Base.iterate
+
+
+
 import OnlineStats
 OS = OnlineStats
 
-_online_stats_series(quantiles::Vector{<:Real}) =
-  OS.Series(OS.Extrema(), OS.Mean(), OS.Variance(), [OS.P2Quantile(x) for x in quantiles]...)
+abstract type StatsTrackerMessage end
 
+struct Measurement{T<:Number} <: StatsTrackerMessage
+  key::String
+  value::T
+end
+
+struct SnapshotRequest <: StatsTrackerMessage
+  outputch::Channel{Dict{String,OS.Series}}
+end
 
 struct StatsTracker
-  _reportch::Channel{Tuple{String,Number}}
-  _quantiles::Vector{<:Real}
-  _stats::Dict{String,OS.OnlineStat}
+  _reportch::Channel{StatsTrackerMessage}
 
-  # Lock used so that we don't try to modify online stats when a snapshot is being taken.
-  # Most of the time it's held inside the iterations in the loop of the measurement-processing task.
-  _stats_lock::ReentrantLock
 
   function StatsTracker(chsize = 10000, quantiles = [0.1, 0.5, 0.7, 0.9, 0.95, 0.99])
-    t = new(
-      Channel{Tuple{String,Number}}(chsize),
-      quantiles,
-      Dict{String,OS.OnlineStat}(),
-      ReentrantLock(),
-    )
+    t = new(Channel{StatsTrackerMessage}(chsize))
+    @spawnlog _stats_tracker_processing_task(t, quantiles)
+    t
+  end
 
-    @spawn for (k, v) in t._reportch
-      lock(t._stats_lock) do
-        if !haskey(t._stats, k)
-          t._stats[k] = _online_stats_series(t._quantiles)
-        end
-        fit!(t._stats[k], v)
-      end
-    end
+end
+
+
+function _process!(message::Measurement, stats::Dict{String,OS.Series}, series_initializer)
+  if !haskey(stats, message.key)
+    stats[message.key] = series_initializer()
+  end
+  fit!(stats[message.key], message.value)
+  nothing  # type stability
+end
+
+function _process!(message::SnapshotRequest, stats::Dict{String,OS.Series}, series_initializer)
+  put!(message.outputch, deepcopy(stats))
+  nothing  # type stability
+end
+
+
+function _stats_tracker_processing_task(t::StatsTracker, quantiles::Vector{<:Real})
+  stats = Dict{String,OS.Series}()
+
+  series_initializer() =
+    OS.Series(OS.Extrema(), OS.Mean(), OS.Variance(), [OS.P2Quantile(x) for x in quantiles]...)
+
+  for message in t._reportch
+    _process!(message, stats, series_initializer)
   end
 end
 
-report!(t::StatsTracker, key::String, value::Number) = put!(t._reportch, (key, value))
-
-snapshot(t::StatsTracker) =
-  lock(t._stats_lock) do
-    return deepcopy(t._stats)
-  end
 
 
-struct LoggingChannel{T} <: AbstractChannel{T}
+report!(t::StatsTracker, key::String, value::Number) = put!(t._reportch, Measurement(key, value))
+
+function snapshot(t::StatsTracker)
+  ch = Channel{Dict{String,OS.Series}}(1)  # unbuffered
+  @info "gonna put snapshot request"
+  @info n_avail(t._reportch)
+  put!(t._reportch, SnapshotRequest(ch))
+  take!(ch)
+end
+
+struct TrackingChannel{T} <: AbstractChannel{T}
   id::String
   ch::Channel{T}
   tracker::StatsTracker
 end
 
-
-@forward LoggingChannel.chan (
-  isbuffered,
-  check_channel_state,
-  close,
-  isopen,
-  isready,
-  n_avail,
-  isempty,
-  lock,
-  unlock,
-  trylock,
-  wait,
+@forward TrackingChannel.chan (
+  Base.isbuffered,
+  Base.check_channel_state,
+  Base.close,
+  Base.isopen,
+  Base.isready,
+  Base.n_avail,
+  Base.isempty,
+  Base.lock,
+  Base.unlock,
+  Base.trylock,
+  Base.wait
 )
 
+Base.eltype(::Type{TrackingChannel{T}}) where {T} = T
+Base.bind(c::TrackingChannel, task::Task) = bind(c.chan, task)
 
-eltype(::Type{LoggingChannel{T}}) where {T} = T
+Base.show(io::IO, c::TrackingChannel) = print(io, typeof(c), "[id=$(id), chan=$(chan)]")
 
-bind(c::LoggingChannel, task::Task) = bind(c.chan, task)
-
-
-show(io::IO, c::LoggingChannel) = print(io, typeof(c), "[id=$(id), chan=$(chan)]")
-
-
-
-report!(c::LoggingChannel, name::String, value::Number) =
+report!(c::TrackingChannel, name::String, value::Number) =
   report!(c.tracker, "$(c.id)__$(name)", value)
 
-function put!(c::LoggingChannel{T}, v) where {T}
+function Base.put!(c::TrackingChannel{T}, v) where {T}
   n = n_avail(c.ch)
+  @assert isa(n, Int)
   t = @elapsed put!(c.ch, v)
-  _report!(c, "put-time", t)
-  _report!(c, "put-length", t)
+  report!(c, "put-time", t)
+  report!(c, "put-length", n)
 end
 
-function fetch(c::Channel)
+function Base.fetch(c::TrackingChannel)
   n = n_avail(c.ch)
   t = @elapsed result = fetch(c.ch)
-  _report!(c, "fetch-time", t)
-  _report!(c, "fetch-length", n)
+  report!(c, "fetch-time", t)
+  report!(c, "fetch-length", n)
   result
 end
 
-function take!(c::Channel)
+function Base.take!(c::TrackingChannel)
   n = n_avail(c.ch)
   t = @elapsed result = take!(c.ch)
-  _report!(c, "take-time", t)
-  _report!(c, "take-length", n)
+  report!(c, "take-time", t)
+  report!(c, "take-length", n)
   result
+end
+
+function Base.iterate(c::TrackingChannel, state=nothing)
+    try
+        return (take!(c), nothing)
+    catch e
+        if isa(e, InvalidStateException) && e.state === :closed
+            return nothing
+        else
+            rethrow()
+        end
+    end
 end

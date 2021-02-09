@@ -1,7 +1,10 @@
 module Hair
 
-include("img.jl")
 include("util.jl")
+include("channels.jl")
+
+include("img.jl")
+
 
 include("file.jl")
 include("gendata.jl")
