@@ -20,8 +20,6 @@ import Base.isbuffered,
   Base.show,
   Base.iterate
 
-
-
 import OnlineStats
 OS = OnlineStats
 
@@ -36,18 +34,41 @@ struct SnapshotRequest <: StatsTrackerMessage
   outputch::Channel{Dict{String,OS.Series}}
 end
 
+####################################################################################################
+"""
+Tracks statistics of asynchronously reported observations.
+
+Uses OnlineStats.jl package to keep track of stats in a lightweight way and
+does not store the actual observations.
+
+- `report!(tracker, key::String, value::Number)`: 
+     records a measurement under a string key and updates its statistics.
+
+- `snapshot(tracker)`: gets a copy of the current stats, a dictionary of String->OnlineStats.Series
+
+Constructor takes buffer length for the channel (`chsize`) and the list of quantiles to track.
+Additional stats tracked are mean, variance, and extrema.
+"""
 struct StatsTracker
+  #=
+  A key part of the tracker is the task implemented by `_stats_tracker_processing_task` below,
+  which runs in a separate thread.
+  It reads in an infinite loop from the `_reportch`, updates stats and provides snapshots of
+  the stats.
+
+  The stats data lives in the local function scope of the task. That way it can only be directly
+  read and written by the task itself, synchronization is implemented with the `_reportch` channel
+  and we don't have to have an extra lock for taking the snapshot of the stats.
+  =# 
+  
   _reportch::Channel{StatsTrackerMessage}
-
-
+  
   function StatsTracker(chsize = 10000, quantiles = [0.5, 0.95, 0.99])
     t = new(Channel{StatsTrackerMessage}(chsize))
-    @spawnlog _stats_tracker_processing_task(t, quantiles)
+    @spawn _stats_tracker_processing_task(t, quantiles)
     t
   end
-
 end
-
 
 function _process!(message::Measurement, stats::Dict{String,OS.Series}, series_initializer)
   if !haskey(stats, message.key)
@@ -62,35 +83,44 @@ function _process!(message::SnapshotRequest, stats::Dict{String,OS.Series}, seri
   nothing  # type stability
 end
 
-
 function _stats_tracker_processing_task(t::StatsTracker, quantiles::Vector{<:Real})
   stats = Dict{String,OS.Series}()
 
   series_initializer() =
     OS.Series(OS.Extrema(), OS.Mean(), OS.Variance(), [OS.P2Quantile(x) for x in quantiles]...)
-
   for message in t._reportch
     _process!(message, stats, series_initializer)
   end
 end
 
-
-
 report!(t::StatsTracker, key::String, value::Number) = put!(t._reportch, Measurement(key, value))
+@inline function report!(::Nothing, key::String, value::Number); end
 
-function snapshot(t::StatsTracker)
-  ch = Channel{Dict{String,OS.Series}}(1)  # unbuffered
-  @info "gonna put snapshot request"
-  @info n_avail(t._reportch)
+"Get a copy of the current stats of the tracker"
+function snapshot(t::StatsTracker)::Dict{String, OS.Series}
+  ch = Channel{Dict{String,OS.Series}}(1)
   put!(t._reportch, SnapshotRequest(ch))
   take!(ch)
 end
 
+####################################################################################################
+"""
+Wraps an internal channel and tracks performance statistics for `take!`, `put!`, `fetch` calls.
+
+Performance stats are blocking time and length of data buffer and they are reported to the StatsTracker
+provided on construction. E.g if we have `ch1 = TrackingChannel("ch1", Channel(100), tracker)`,
+calls to `take!(ch1)` will report measurements named `"ch1__take-time"` and `"ch1__take-length"` to the
+`tracker`.
+
+`tracker` can also be set to `nothing` and then nothing is reported anywhere.
+"""
 struct TrackingChannel{T} <: AbstractChannel{T}
   id::String
   ch::Channel{T}
-  tracker::StatsTracker
+  tracker::Union{StatsTracker, Nothing}
 end
+
+TrackingChannel(id::String, ch::Channel{T}) where T = TrackingChannel(id, ch, nothing)
 
 @forward TrackingChannel.ch (
   Base.isbuffered,
@@ -111,7 +141,7 @@ Base.bind(c::TrackingChannel, task::Task) = bind(c.chan, task)
 
 Base.show(io::IO, c::TrackingChannel) = print(io, typeof(c), "[id=$(c.id), chan=$(c.ch)]")
 
-report!(c::TrackingChannel, name::String, value::Number) =
+@inline report!(c::TrackingChannel, name::String, value::Number) =
   report!(c.tracker, "$(c.id)__$(name)", value)
 
 function Base.put!(c::TrackingChannel{T}, v) where {T}
