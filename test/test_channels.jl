@@ -11,16 +11,15 @@ tracker = H.StatsTracker()
 
 tch = H.TrackingChannel("ch1", Channel{Int}(100), tracker)
 
-@spawnlog for i=1:100000
+@spawnlog for i = 1:100000
   take!(tch)
-  sleep(rand()*0.045)
+  sleep(rand() * 0.045)
 end
-
 
 @spawnlog begin
   for i = 1:100000
     put!(tch, i)
-    sleep(rand()*0.05)
+    sleep(rand() * 0.05)
   end
   close(tch)
 end

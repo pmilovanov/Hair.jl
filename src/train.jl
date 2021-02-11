@@ -27,8 +27,8 @@ function load_data(datadir::String; bufsize::Int = 256)
 
   c_blobs = Channel(bufsize)
   c_imgs = Channel(bufsize)
-  @asynclog read_images_masks_from_dir(c_blobs, datadir)
-  @asynclog load_images_masks(c_blobs, c_imgs)
+  @spawnlog c_blobs read_images_masks_from_dir(c_blobs, datadir)
+  @spawnlog c_imgs load_images_masks(c_blobs, c_imgs)
 
   for (i, (fname, img, mask)) in enumerate(c_imgs)
     imgs[:, :, :, i] = Float32.(permutedims(channelview(img), [2, 3, 1]))
@@ -56,18 +56,22 @@ end
 readdir_nomasks(dirpath::String) =
   [x for x in readdir(dirpath, join = true) if !contains(x, "-mask")]
 
-function prepare_data(args::TrainArgs)
+function prepare_data(args::TrainArgs, tracker=StatsTracker())
   filenames = readdir_nomasks(args.img_dir)
 
   train_fnames, test_fnames = splitobs(shuffleobs(filenames), at = (1 - args.test_set_ratio))
 
   trainset = GPUBufDataLoader(
-    ImageAndMaskLoader(train_fnames; batchsize = args.batch_size, bufsize = args.batch_size * 128),
+    ImageAndMaskLoader(train_fnames; batchsize = args.batch_size, bufsize = args.batch_size * 128, id="imgloader_train", statstracker=tracker),
     2,
+    id="gpudl_train",
+    statstracker=tracker
   )
   testset = GPUBufDataLoader(
-    ImageAndMaskLoader(test_fnames; batchsize = args.batch_size, bufsize = args.batch_size * 8),
+    ImageAndMaskLoader(test_fnames; batchsize = args.batch_size, bufsize = args.batch_size * 8, id="imgloader_test", statstracker=tracker),
     2,
+    id="gpudl_test",
+    statstracker=tracker
   )
 
 
@@ -204,10 +208,10 @@ function train(args::Union{Nothing,TrainArgs}; kwargs...)
       TrainArgs(test_set_ratio = 0.05, img_dir = expanduser("~/data/hair/hairy/exp/full128_0120"))
   end
 
-
+  tracker = StatsTracker()
 
   @info "Setting up data"
-  trainset, testset = prepare_data(args)
+  trainset, testset = prepare_data(args, tracker)
 
   if args.previous_saved_model == nothing
     @info "Making model"
@@ -232,9 +236,19 @@ function train(args::Union{Nothing,TrainArgs}; kwargs...)
   # Starting to train models
   f1_old = 0.0
 
-  CUDA.@profile for i = 1:args.epochs
+  for i = 1:args.epochs
     p = Progress(length(trainset), dt = 1.0, desc = "Epoch $i: ")
-    Flux.train!(loss, params(m), trainset, opt, cb = () -> next!(p))
+
+    lasttime = Ref(time_ns())
+    
+    function iteration_callback()
+      curtime = time_ns()
+      elapsed = (curtime - lasttime[])/1e9
+      report!(tracker, "train_iteration_time", elapsed)
+      next!(p)
+      lasttime[] = time_ns()
+    end
+    Flux.train!(loss, params(m), trainset, opt, cb = iteration_callback)
     #p,r,f1 = prf1(m, testset)
     #@printf("Epoch %3d PRF1: %0.3f   %0.3f   %0.3f   --- ", i, p, r, f1)
 
@@ -255,6 +269,12 @@ function train(args::Union{Nothing,TrainArgs}; kwargs...)
     end
     #    @show f2
 
+    stats = snapshot(tracker)
+    for k in sort(collect(keys(stats)))
+      println("----------- $k -------------")
+      show(stats[k])
+    end
+    
     trainset, testset = reset(trainset), reset(testset)
   end
 
