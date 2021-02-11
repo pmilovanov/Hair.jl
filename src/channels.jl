@@ -40,7 +40,7 @@ struct StatsTracker
   _reportch::Channel{StatsTrackerMessage}
 
 
-  function StatsTracker(chsize = 10000, quantiles = [0.1, 0.5, 0.7, 0.9, 0.95, 0.99])
+  function StatsTracker(chsize = 10000, quantiles = [0.5, 0.95, 0.99])
     t = new(Channel{StatsTrackerMessage}(chsize))
     @spawnlog _stats_tracker_processing_task(t, quantiles)
     t

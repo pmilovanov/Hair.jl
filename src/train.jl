@@ -238,7 +238,17 @@ function train(args::Union{Nothing,TrainArgs}; kwargs...)
 
   for i = 1:args.epochs
     p = Progress(length(trainset), dt = 1.0, desc = "Epoch $i: ")
-    Flux.train!(loss, params(m), trainset, opt, cb = () -> next!(p))
+
+    lasttime = Ref(time_ns())
+    
+    function iteration_callback()
+      curtime = time_ns()
+      elapsed = (curtime - lasttime[])/1e9
+      report!(tracker, "train_iteration_time", elapsed)
+      next!(p)
+      lasttime[] = time_ns()
+    end
+    Flux.train!(loss, params(m), trainset, opt, cb = iteration_callback)
     #p,r,f1 = prf1(m, testset)
     #@printf("Epoch %3d PRF1: %0.3f   %0.3f   %0.3f   --- ", i, p, r, f1)
 
@@ -259,7 +269,7 @@ function train(args::Union{Nothing,TrainArgs}; kwargs...)
     end
     #    @show f2
 
-    snapshot_stats = snapshot(tracker)
+    stats = snapshot(tracker)
     for k in sort(collect(keys(stats)))
       println("----------- $k -------------")
       show(stats[k])
