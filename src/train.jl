@@ -27,8 +27,8 @@ function load_data(datadir::String; bufsize::Int = 256)
 
   c_blobs = Channel(bufsize)
   c_imgs = Channel(bufsize)
-  @asynclog read_images_masks_from_dir(c_blobs, datadir)
-  @asynclog load_images_masks(c_blobs, c_imgs)
+  @spawnlog c_blobs read_images_masks_from_dir(c_blobs, datadir)
+  @spawnlog c_imgs load_images_masks(c_blobs, c_imgs)
 
   for (i, (fname, img, mask)) in enumerate(c_imgs)
     imgs[:, :, :, i] = Float32.(permutedims(channelview(img), [2, 3, 1]))

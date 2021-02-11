@@ -7,6 +7,7 @@ using Images
 # GPU data loader
 ################################################################################
 
+"Wrapper around an iterable that moves data to the GPU before returning it to caller"
 struct GPUDataLoader
   inner::Any # iterable
 end
@@ -25,7 +26,14 @@ Base.length(d::GPUDataLoader) = Base.length(d.inner)
 reset(d::GPUDataLoader) = GPUDataLoader(reset(d.inner))
 
 
+"""
+Buffered wrapper around an iterable that asynchronously moves data to the GPU before handing it to the consumer.
 
+This means that it aims to pre-load some data into GPU memory so that it's there when the consumer wants to use it.
+How much data is preloaded is determined by the size of the buffer.
+
+Also takes a StatsTracker to track channel performance.
+"""
 struct GPUBufDataLoader
   inner::Any # iterable
 
@@ -66,6 +74,8 @@ end
 ################################################################################
 
 FilenameImageMaskTuple{P,Q} = Tuple{String,Array{P,2},Array{Q,2}} where {P,Q}
+
+
 struct ImageAndMaskLoader
   filenames::AbstractArray{String,1}
   batchsize::Int
@@ -103,8 +113,8 @@ struct ImageAndMaskLoader
       TrackingChannel("$(id)_c_blobs", Channel(bufsize * 2), statstracker),
       TrackingChannel("$(id)_c_imgs", Channel(bufsize), statstracker)
     )
-    @asynclog read_images_masks(this.c_blobs, filenames = filenames)
-    @asynclog load_images_masks(this.c_blobs, this.c_imgs)
+    @spawnlog this.c_blobs read_images_masks(this.c_blobs, filenames = filenames)
+    @spawnlog this.c_imgs load_images_masks(this.c_blobs, this.c_imgs)
 
     return this
   end
@@ -138,8 +148,8 @@ end
 Base.length(d::ImageAndMaskLoader) = length(d.filenames) ÷ d.batchsize
 
 
-imgtoarray(img::Image) = Float32.(Flux.unsqueeze(permutedims(channelview(img), [2, 3, 1]), 4))
 
+imgtoarray(img::Image) = Float32.(Flux.unsqueeze(permutedims(channelview(img), [2, 3, 1]), 4))
 
 function imgtoarray(img::Image, side::Int)
   if size(img) != (side, side)
@@ -148,7 +158,4 @@ function imgtoarray(img::Image, side::Int)
   imgtoarray(img)
 end
 
-
-function arraytoimg(arr::AbstractArray{T,3}) where {T}
-  colorview(RGB, permuteddimsview(arr, (3, 1, 2)))
-end
+arraytoimg(arr::AbstractArray{T,3}) where {T} = colorview(RGB, permuteddimsview(arr, (3, 1, 2)))

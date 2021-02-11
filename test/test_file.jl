@@ -1,5 +1,6 @@
-using Hair;
-H = Hair;
+using Hair
+using Hair: @spawnlog
+H = Hair
 using Test, Printf, Images
 
 @testset "File utils" begin
@@ -14,7 +15,7 @@ using Test, Printf, Images
     end
 
     c = Channel(100)
-    @async H.read_images_masks_from_dir(c, tdir)
+    @spawnlog c H.read_images_masks_from_dir(c, tdir)
     @test [String.(x) for x in c] == [
       ("1.png", "1.png", "1-mask.png"),
       ("2.png", "2.png", "2-mask.png"),
@@ -35,19 +36,16 @@ using Test, Printf, Images
 
     c_blobs = Channel(100)
     c_imgs = Channel(100)
-    @async H.read_images_masks_from_dir(c_blobs, tdir)
-    @async H.load_images_masks(c_blobs, c_imgs)
+    @spawnlog c_blobs H.read_images_masks_from_dir(c_blobs, tdir)
+    @spawnlog c_imgs H.load_images_masks(c_blobs, c_imgs)
     v = Dict([fname => (img, mask) for (fname, img, mask) in c_imgs])
-
+    
     @test length(v) == N
     for i = 1:N
       fname = @sprintf("%d.png", i)
       @test v[fname][1] == imgs[i]
       @test (v[fname][2] .> 0.9) == masks[i]
     end
-
-    #a_imgs, a_masks = H.load_data(tdir)
-
   end
 
 end
