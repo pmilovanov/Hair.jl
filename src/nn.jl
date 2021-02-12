@@ -104,6 +104,46 @@ binfloat(x::AbstractArray{T,N}) where {T<:AbstractFloat,N} =
 
 count1s(x::AbstractArray{T,N}) where {T<:AbstractFloat,N} = sum(binfloat(x))
 
+
+BinarySegmentationMetrics = @NamedTuple begin
+  precision::Float64
+  recall::Float64
+  f1::Float64
+  ap_ŷ::Int
+  ap_y::Int
+  tp::Int
+  tn::Int
+  fp::Int
+  fn::Int
+  npixels::Int
+end
+
+function binsegmetrics(ŷ::AbstractArray{Bool,N}, y::AbstractArray{Bool,N}) where {N}
+  @assert size(ŷ) == size(y)
+  npixels = prod(size(y))
+  ap_ŷ = count(ŷ)
+  ap_y = count(y)
+  tp = count(ŷ .& y)
+  fp = count(ŷ) - tp
+
+  nŷ, ny = .!ŷ, .!y
+  tn = count(nŷ .& ny)
+  fn = count(nŷ) - tn
+
+  p = tp / (tp+fp)
+  r = tp / (tp+fn)
+  f1 = 2*p*r / (p+r)
+
+  BinarySegmentationMetrics( (p, r, f1, ap_ŷ, ap_y, tp, tn, fp, fn, npixels) )
+end
+
+
+function binsegmetrics(ŷ::AbstractArray{T,N}, y::AbstractArray{T,N}, threshold::AbstractFloat=0.1) where {T<:AbstractFloat,N}
+  ŷ = (ŷ .> threshold)
+  y = (y .> threshold)
+  binsegmetrics(ŷ, y)
+end
+
 function precision(ŷ::AbstractArray{T,N}, y::AbstractArray{T,N}) where {T<:AbstractFloat,N}
   ŷr, yr = binfloat(ŷ), binfloat(y)
   return sum(ŷr .* yr) / sum(ŷr)
