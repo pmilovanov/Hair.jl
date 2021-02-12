@@ -1,17 +1,7 @@
 module Models
 
-using Base.Iterators: partition
-using Flux.Data: DataLoader
-using Parameters: @with_kw
 using Flux, CUDA
 using Flux: throttle, logitbinarycrossentropy
-using Statistics
-using Printf
-using MLDataPattern: splitobs, shuffleobs
-using ProgressMeter
-using BSON: @load, @save
-import Dates
-using NNlib
 
 import ..Upsample, ..SkipUnit
 
