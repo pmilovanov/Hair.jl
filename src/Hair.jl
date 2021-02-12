@@ -15,7 +15,7 @@ include("nn.jl")
 include("synthetic.jl")
 include("test_util.jl")
 include("train.jl")
-
+include("eval.jl")
 
 export sample_image, GridStrategy
 

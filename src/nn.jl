@@ -114,6 +114,19 @@ function recall(ŷ::AbstractArray{T,N}, y::AbstractArray{T,N}) where {T<:Abstra
   return sum(ŷr .* yr) / sum(yr)
 end
 
+function f1(ŷ::AbstractArray{T,N}, y::AbstractArray{T,N}) where {T<:AbstractFloat,N}
+  p += precision(ŷ, y)
+  r += recall(ŷ, y)
+  f1 = 2 * p * r / (p + r)
+end
+
+function prf1(ŷ::AbstractArray{T,N}, y::AbstractArray{T,N}) where {T<:AbstractFloat,N}
+  p = precision(ŷ, y)
+  r = recall(ŷ, y)
+  f1 = 2 * p * r / (p + r)
+  (p, r, f1)
+end
+
 precision(model, testset) = mean([precision(model(x), y) for (x, y) in testset])
 recall(model, testset) = mean([recall(model(x), y) for (x, y) in testset])
 

@@ -40,7 +40,7 @@ struct GPUBufDataLoader
   bufsize::Int
   chan::TrackingChannel
 
-  function GPUBufDataLoader(inner_loader, bufsize::Int; id="gpudl", statstracker=StatsTracker())
+  function GPUBufDataLoader(inner_loader, bufsize::Int; id = "gpudl", statstracker = StatsTracker())
     chan = TrackingChannel(id, Channel(bufsize), statstracker)
     this = new(inner_loader, bufsize, chan)
     @spawnlog this.chan for data in this.inner
@@ -92,8 +92,8 @@ struct ImageAndMaskLoader
     batchsize::Int = 32,
     bufsize::Int = 256,
     shuffle::Bool = true,
-    id="imgloader",
-    statstracker=StatsTracker()
+    id = "imgloader",
+    statstracker = StatsTracker(),
   )
     @assert length([x for x in filenames if contains(x, "-mask")]) == 0
 
@@ -111,7 +111,7 @@ struct ImageAndMaskLoader
       size(sampleimg),
       3,
       TrackingChannel("$(id)_c_blobs", Channel(bufsize * 2), statstracker),
-      TrackingChannel("$(id)_c_imgs", Channel(bufsize), statstracker)
+      TrackingChannel("$(id)_c_imgs", Channel(bufsize), statstracker),
     )
     @spawnlog this.c_blobs read_images_masks(this.c_blobs, filenames = filenames)
     @spawnlog this.c_imgs load_images_masks(this.c_blobs, this.c_imgs)

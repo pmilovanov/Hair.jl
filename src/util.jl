@@ -51,7 +51,7 @@ macro spawnlog(expr)
       lock(SHOWERROR_LOCK) do
         showerror(stderr, ex, bt)
         println()
-      end      
+      end
       rethrow(ex)
     end
   end

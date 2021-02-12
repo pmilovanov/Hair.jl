@@ -59,10 +59,10 @@ struct StatsTracker
   The stats data lives in the local function scope of the task. That way it can only be directly
   read and written by the task itself, synchronization is implemented with the `_reportch` channel
   and we don't have to have an extra lock for taking the snapshot of the stats.
-  =# 
-  
+  =#
+
   _reportch::Channel{StatsTrackerMessage}
-  
+
   function StatsTracker(chsize = 10000, quantiles = [0.5, 0.95, 0.99])
     t = new(Channel{StatsTrackerMessage}(chsize))
     @spawn _stats_tracker_processing_task(t, quantiles)
@@ -94,10 +94,10 @@ function _stats_tracker_processing_task(t::StatsTracker, quantiles::Vector{<:Rea
 end
 
 report!(t::StatsTracker, key::String, value::Number) = put!(t._reportch, Measurement(key, value))
-@inline function report!(::Nothing, key::String, value::Number); end
+@inline function report!(::Nothing, key::String, value::Number) end
 
 "Get a copy of the current stats of the tracker"
-function snapshot(t::StatsTracker)::Dict{String, OS.Series}
+function snapshot(t::StatsTracker)::Dict{String,OS.Series}
   ch = Channel{Dict{String,OS.Series}}(1)
   put!(t._reportch, SnapshotRequest(ch))
   take!(ch)
@@ -117,10 +117,10 @@ calls to `take!(ch1)` will report measurements named `"ch1__take-time"` and `"ch
 struct TrackingChannel{T} <: AbstractChannel{T}
   id::String
   ch::Channel{T}
-  tracker::Union{StatsTracker, Nothing}
+  tracker::Union{StatsTracker,Nothing}
 end
 
-TrackingChannel(id::String, ch::Channel{T}) where T = TrackingChannel(id, ch, nothing)
+TrackingChannel(id::String, ch::Channel{T}) where {T} = TrackingChannel(id, ch, nothing)
 
 @forward TrackingChannel.ch (
   Base.isbuffered,

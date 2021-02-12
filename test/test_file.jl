@@ -39,7 +39,7 @@ using Test, Printf, Images
     @spawnlog c_blobs H.read_images_masks_from_dir(c_blobs, tdir)
     @spawnlog c_imgs H.load_images_masks(c_blobs, c_imgs)
     v = Dict([fname => (img, mask) for (fname, img, mask) in c_imgs])
-    
+
     @test length(v) == N
     for i = 1:N
       fname = @sprintf("%d.png", i)
