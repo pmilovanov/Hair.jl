@@ -4,7 +4,7 @@ using Flux, CUDA
 using Flux: throttle, logitbinarycrossentropy
 
 import ..Upsample, ..SkipUnit
-
+using Parameters: @with_kw
 
 function conv_block(
   nunits::Int,
@@ -18,7 +18,9 @@ function conv_block(
   chain = [Conv(k, ch, σ; pad = pad, stride = stride, kwargs...), BatchNorm(last(ch))]
   for i = 1:nunits-1
     push!(chain, Conv(k, last(ch) => last(ch), σ; pad = pad, stride = stride, kwargs...))
-    push!(chain, BatchNorm(last(ch)))
+    if σ != selu
+      push!(chain, BatchNorm(last(ch)))
+    end
   end
   Chain(chain...)
 end
@@ -66,14 +68,14 @@ end
 
 # end
 
+upsample_conv(channels::Pair{Int,Int}, σ=relu) =
+  Chain(Upsample(), Conv((5, 5), channels, σ, pad = SamePad(), stride = (1, 1)))
+
 function build_model_simple(blocksizes::Vector{Int})
 
   maxpool() = MaxPool((2, 2))
 
   # transpose conv, upsamples 2x
-  upsample_conv(channels::Pair{Int,Int}) =
-    Chain(Upsample(), Conv((5, 5), channels, relu, pad = SamePad(), stride = (1, 1)))
-
 
   convs3 = Chain(#  DebugPrintSize("conv0"),
                  conv_block(blocksizes[1], (3, 3), 3 => 16), # DebugPrintSize("convs1"),
@@ -82,7 +84,6 @@ function build_model_simple(blocksizes::Vector{Int})
                  maxpool(),
                  conv_block(blocksizes[3], (3, 3), 24 => 32),  #DebugPrintSize("convs3"),
                  )
-
   convs4u1 = Chain(
     maxpool(),
     conv_block(blocksizes[4], (3, 3), 32 => 64),
@@ -91,7 +92,6 @@ function build_model_simple(blocksizes::Vector{Int})
     BatchNorm(32),
     #    DebugPrintSize("convs4u1"),
   )
-
   stacked1u2 = Chain(
     SkipUnit(convs3, convs4u1),
     upsample_conv(64 => 16),
@@ -103,6 +103,48 @@ function build_model_simple(blocksizes::Vector{Int})
 
   return stacked1u2
 
+end
+
+################################################################################
+@with_kw struct MiniUNetArgs
+  blocksizes::Vector{Int} = [5,5,5,5]
+  kernelsizes::Vector{NTuple{2,Int}} = [(3,3), (3,3), (3,3), (3,3)]
+end
+
+maxpool() = MaxPool((2, 2))
+
+function selu_mini_unet(a::MiniUNetArgs)
+  
+  convs3 = Chain(# DebugPrintSize("conv0"),
+                 conv_block(a.blocksizes[1], a.kernelsizes[1], 3 => 16, selu),
+                 # DebugPrintSize("convs1"),
+                 maxpool(),
+                 conv_block(a.blocksizes[2], a.kernelsizes[2], 16 => 24, selu),
+                 # DebugPrintSize("convs2"),
+                 maxpool(),
+                 conv_block(a.blocksizes[3], a.kernelsizes[3], 24 => 32, selu),
+                 # DebugPrintSize("convs3"),
+                 )
+  convs4u1 = Chain(
+    maxpool(),
+    conv_block(a.blocksizes[4], a.kernelsizes[4], 32 => 64, selu),
+    #   DebugPrintSize("convs4"),
+    upsample_conv(64 => 32, selu)
+    # BatchNorm(32),
+    #    DebugPrintSize("convs4u1"),
+  )
+  stacked1u2 = Chain(
+    SkipUnit(convs3, convs4u1),
+    upsample_conv(64 => 16, selu),
+    # BatchNorm(16),
+    Upsample(),    
+    Conv((5, 5), 16 => 1, σ, pad = SamePad(), stride = (1, 1)),
+    #    DebugPrintSize("stacked1u2"),
+  )
+
+  return stacked1u2
+
+  
 end
 
 

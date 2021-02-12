@@ -61,11 +61,15 @@ end
   #   @test !all(z2 .== 0)
   # end
 
-  begin
-    z = rand(Float32, (512, 512, 3, 1))
+  let z = rand(Float32, (512, 512, 3, 1))
     m = H.Models.build_model_simple([2,3,3,3])
     z2 = m(z)
     @test !all(z2 .== 0)
   end
 
+  let z = rand(Float32, (512, 512, 3, 1))
+    m = H.Models.selu_mini_unet(H.Models.MiniUNetArgs())
+    z2 = m(z)
+    @test !all(z2 .== 0)
+  end
 end
