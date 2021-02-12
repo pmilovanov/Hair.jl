@@ -1,6 +1,7 @@
 using Test
-using Hair, Hair.TestUtil
-using Images, Flux
+using Hair, Hair.TestUtil, Hair.Models
+using Images
+using Flux
 
 H = Hair
 
@@ -29,7 +30,7 @@ end
 
 @testset "ML funcs" begin
 
-  @test repr(H.conv_block(3, (3, 3), 128 => 256, relu, pad = (1, 1), stride = (1, 1))) == repr(
+  @test repr(H.Models.conv_block(3, (3, 3), 128 => 256, relu, pad = (1, 1), stride = (1, 1))) == repr(
     Chain(
       Conv((3, 3), 128 => 256, relu, pad = (1, 1), stride = (1, 1)),
       BatchNorm(256),
@@ -62,7 +63,7 @@ end
 
   begin
     z = rand(Float32, (512, 512, 3, 1))
-    m = H.build_model_simple()
+    m = H.Models.build_model_simple([2,3,3,3])
     z2 = m(z)
     @test !all(z2 .== 0)
   end

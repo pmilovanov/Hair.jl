@@ -14,6 +14,9 @@ include("dataloaders.jl")
 include("nn.jl")
 include("synthetic.jl")
 include("test_util.jl")
+
+include("models/Models.jl")
+
 include("train.jl")
 include("eval.jl")
 
