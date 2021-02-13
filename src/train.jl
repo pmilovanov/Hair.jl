@@ -86,7 +86,7 @@ function prepare_data(args::TrainArgs, tracker = StatsTracker())
     ImageAndMaskLoader(
       train_fnames;
       batchsize = args.batch_size,
-      bufsize = args.batch_size * 128,
+      bufsize = args.batch_size * 16,
       id = "imgloader_train",
       statstracker = tracker,
     ) |> GPUDataLoader
@@ -126,11 +126,7 @@ end
 
 
 function train(args::TrainArgs; model, kwargs...)
-  if args == nothing
-    args =
-      TrainArgs(test_set_ratio = 0.05, img_dir = expanduser("~/data/hair/hairy/exp/full128_0120"))
-  end
-
+  @info "Number of threads: $(Threads.nthreads())"
   tracker = StatsTracker()
 
   @info "Setting up data"
