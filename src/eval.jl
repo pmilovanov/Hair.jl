@@ -111,14 +111,14 @@ function eval_on_image(model, input_path::String, gt_path::String, resize_ratio:
   if resize_ratio != 1.0
     ŷ = imresize(ŷ, ratio = resize_ratio)
     y = imresize(y, ratio = resize_ratio)
-  end  
+  end
 
   prf1(channelview(ŷ), channelview(y))
 end
 
 
 GrayImage = Matrix{Gray{Float32}}
-function eval_on_images(images::Vector{NTuple{2, GrayImage}})
+function eval_on_images(images::Vector{NTuple{2,GrayImage}})
 
   accum = values(BinarySegmentationMetrics(zeros(Int, 10)))
 
@@ -130,18 +130,18 @@ function eval_on_images(images::Vector{NTuple{2, GrayImage}})
 
   p = a.tp / (a.tp + a.fp)
   r = a.tp / (a.tp + a.fn)
-  f1 = 2*p*r / (p+r)
+  f1 = 2 * p * r / (p + r)
 
-  BinarySegmentationMetrics( (p, r, f1, a.ap_ŷ, a.ap_y, a.tp, a.tn, a.fp, a.fn, a.npixels) )
+  BinarySegmentationMetrics((p, r, f1, a.ap_ŷ, a.ap_y, a.tp, a.tn, a.fp, a.fn, a.npixels))
 end
 
 function eval_on_image_dir(model, image_dir::String)
-  files = [x for x in readdir(expanduser(image_dir), join=true) if endswith(x, "-mask.jpg")]
+  files = [x for x in readdir(expanduser(image_dir), join = true) if endswith(x, "-mask.jpg")]
 
-  images = Vector{NTuple{2, GrayImage}}()
+  images = Vector{NTuple{2,GrayImage}}()
   for mask_fname in files
     @info mask_fname
-    img_fname = replace(mask_fname, "-mask.jpg"=>".jpg")
+    img_fname = replace(mask_fname, "-mask.jpg" => ".jpg")
 
     img, ŷ = infer(model, img_fname)
     y = convert.(Gray{Float32}, load(mask_fname))
@@ -155,7 +155,7 @@ struct InferenceVisualComparisonResult
   ŷ::Image{Gray{Float32}}
   y::Image{Gray{Float32}}
   overlaid::Image{RGB{Float32}}
-  metrics::Dict{Symbol, Float32}
+  metrics::Dict{Symbol,Float32}
   eval_resize_ratio::Float64
 end
 
@@ -165,8 +165,8 @@ function infer_compare_w_gt(model, input_path::String, gt_path::String; resize_r
 
   ŷr, yr = ŷ, y
   if resize_ratio != 1.0
-    ŷr = imresize(ŷr, ratio=resize_ratio)
-    yr = imresize(yr, ratio=resize_ratio)
+    ŷr = imresize(ŷr, ratio = resize_ratio)
+    yr = imresize(yr, ratio = resize_ratio)
   end
   precision, recall, f1 = prf1(channelview(ŷr), channelview(yr))
 
@@ -174,7 +174,14 @@ function infer_compare_w_gt(model, input_path::String, gt_path::String; resize_r
   place_overlay!(oimg, ŷ, channel = 1)
   place_overlay!(oimg, y, channel = 2)
 
-  InferenceVisualComparisonResult(img, ŷ, y, oimg, Dict(:precision=>precision, :recall=>recall, :f1=>f1), resize_ratio)
+  InferenceVisualComparisonResult(
+    img,
+    ŷ,
+    y,
+    oimg,
+    Dict(:precision => precision, :recall => recall, :f1 => f1),
+    resize_ratio,
+  )
 end
 
 

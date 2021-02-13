@@ -30,7 +30,8 @@ end
 
 @testset "ML funcs" begin
 
-  @test repr(H.Models.conv_block(3, (3, 3), 128 => 256, relu, pad = (1, 1), stride = (1, 1))) == repr(
+  @test repr(H.Models.conv_block(3, (3, 3), 128 => 256, relu, pad = (1, 1), stride = (1, 1))) ==
+        repr(
     Chain(
       Conv((3, 3), 128 => 256, relu, pad = (1, 1), stride = (1, 1)),
       BatchNorm(256),
@@ -62,13 +63,13 @@ end
   # end
 
   let z = rand(Float32, (512, 512, 3, 1))
-    m = H.Models.build_model_simple([2,3,3,3])
+    m = H.Models.build_model_simple([2, 3, 3, 3])
     z2 = m(z)
     @test !all(z2 .== 0)
   end
 
   let z = rand(Float32, (512, 512, 3, 1))
-    m = H.Models.selu_mini_unet(H.Models.MiniUNetArgs())
+    m = H.Models.selu_simple(H.Models.SeluSimpleArgs())
     z2 = m(z)
     @test !all(z2 .== 0)
   end

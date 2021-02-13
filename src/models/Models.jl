@@ -11,7 +11,7 @@ function conv_block(
   k::Tuple{Int,Int},
   ch::Pair{<:Integer,<:Integer},
   σ = relu;
-  pad = (1, 1),
+  pad = SamePad(),
   stride = (1, 1),
   kwargs...,
 ) where {N}
@@ -68,7 +68,7 @@ end
 
 # end
 
-upsample_conv(channels::Pair{Int,Int}, σ=relu) =
+upsample_conv(channels::Pair{Int,Int}, σ = relu) =
   Chain(Upsample(), Conv((5, 5), channels, σ, pad = SamePad(), stride = (1, 1)))
 
 function build_model_simple(blocksizes::Vector{Int})
@@ -78,12 +78,12 @@ function build_model_simple(blocksizes::Vector{Int})
   # transpose conv, upsamples 2x
 
   convs3 = Chain(#  DebugPrintSize("conv0"),
-                 conv_block(blocksizes[1], (3, 3), 3 => 16), # DebugPrintSize("convs1"),
-                 maxpool(),
-                 conv_block(blocksizes[2], (3, 3), 16 => 24), # DebugPrintSize("convs2"),
-                 maxpool(),
-                 conv_block(blocksizes[3], (3, 3), 24 => 32),  #DebugPrintSize("convs3"),
-                 )
+    conv_block(blocksizes[1], (3, 3), 3 => 16), # DebugPrintSize("convs1"),
+    maxpool(),
+    conv_block(blocksizes[2], (3, 3), 16 => 24), # DebugPrintSize("convs2"),
+    maxpool(),
+    conv_block(blocksizes[3], (3, 3), 24 => 32),  #DebugPrintSize("convs3"),
+  )
   convs4u1 = Chain(
     maxpool(),
     conv_block(blocksizes[4], (3, 3), 32 => 64),
@@ -106,30 +106,30 @@ function build_model_simple(blocksizes::Vector{Int})
 end
 
 ################################################################################
-@with_kw struct MiniUNetArgs
-  blocksizes::Vector{Int} = [5,5,5,5]
-  kernelsizes::Vector{NTuple{2,Int}} = [(3,3), (3,3), (3,3), (3,3)]
+@with_kw struct SeluSimpleArgs
+  blocksizes::Vector{Int} = [5, 5, 5, 5]
+  kernelsizes::Vector{NTuple{2,Int}} = [(7, 7), (7, 7), (7, 7), (7, 7)]
 end
 
 maxpool() = MaxPool((2, 2))
 
-function selu_mini_unet(a::MiniUNetArgs)
-  
+function selu_simple(a::SeluSimpleArgs = SeluSimpleArgs())
+
   convs3 = Chain(# DebugPrintSize("conv0"),
-                 conv_block(a.blocksizes[1], a.kernelsizes[1], 3 => 16, selu),
-                 # DebugPrintSize("convs1"),
-                 maxpool(),
-                 conv_block(a.blocksizes[2], a.kernelsizes[2], 16 => 24, selu),
-                 # DebugPrintSize("convs2"),
-                 maxpool(),
-                 conv_block(a.blocksizes[3], a.kernelsizes[3], 24 => 32, selu),
-                 # DebugPrintSize("convs3"),
-                 )
+    conv_block(a.blocksizes[1], a.kernelsizes[1], 3 => 16, selu),
+    # DebugPrintSize("convs1"),
+    maxpool(),
+    conv_block(a.blocksizes[2], a.kernelsizes[2], 16 => 24, selu),
+    # DebugPrintSize("convs2"),
+    maxpool(),
+    conv_block(a.blocksizes[3], a.kernelsizes[3], 24 => 32, selu),
+    # DebugPrintSize("convs3"),
+  )
   convs4u1 = Chain(
     maxpool(),
     conv_block(a.blocksizes[4], a.kernelsizes[4], 32 => 64, selu),
     #   DebugPrintSize("convs4"),
-    upsample_conv(64 => 32, selu)
+    upsample_conv(64 => 32, selu),
     # BatchNorm(32),
     #    DebugPrintSize("convs4u1"),
   )
@@ -137,14 +137,14 @@ function selu_mini_unet(a::MiniUNetArgs)
     SkipUnit(convs3, convs4u1),
     upsample_conv(64 => 16, selu),
     # BatchNorm(16),
-    Upsample(),    
+    Upsample(),
     Conv((5, 5), 16 => 1, σ, pad = SamePad(), stride = (1, 1)),
     #    DebugPrintSize("stacked1u2"),
   )
 
   return stacked1u2
 
-  
+
 end
 
 

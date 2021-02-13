@@ -11,8 +11,12 @@ H = Hair
 
   savepath = mktempdir(cleanup = false)
 
-  model_dir =
-    H.train(H.TrainArgs(img_dir = tdir, test_set_ratio = 0.5, epochs = 2, savepath = savepath))
+  model = H.Models.selu_simple()
+
+  model_dir = H.train(
+    H.TrainArgs(img_dir = tdir, test_set_ratio = 0.5, epochs = 2, savepath = savepath),
+    model = model,
+  )
 
   for p in ["epoch_001.bson", "epoch_002.bson"]
     fname = joinpath(model_dir, p)

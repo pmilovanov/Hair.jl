@@ -47,9 +47,6 @@ end
   savepath::String = "./"
   test_set_ratio = 0.2
   previous_saved_model = nothing
-
-
-  blocksizes = [2, 3, 3, 3]
 end
 
 readdir_nomasks(dirpath::String) =
@@ -60,31 +57,48 @@ function prepare_data(args::TrainArgs, tracker = StatsTracker())
 
   train_fnames, test_fnames = splitobs(shuffleobs(filenames), at = (1 - args.test_set_ratio))
 
-  trainset = GPUBufDataLoader(
+  # trainset = GPUBufDataLoader(
+  #   ImageAndMaskLoader(
+  #     train_fnames;
+  #     batchsize = args.batch_size,
+  #     bufsize = args.batch_size * 128,
+  #     id = "imgloader_train",
+  #     statstracker = tracker,
+  #   ),
+  #   2,
+  #   id = "gpudl_train",
+  #   statstracker = tracker,
+  # )
+  # testset = GPUBufDataLoader(
+  #   ImageAndMaskLoader(
+  #     test_fnames;
+  #     batchsize = args.batch_size,
+  #     bufsize = args.batch_size * 8,
+  #     id = "imgloader_test",
+  #     statstracker = tracker,
+  #   ),
+  #   2,
+  #   id = "gpudl_test",
+  #   statstracker = tracker,
+  # )
+
+  trainset =
     ImageAndMaskLoader(
       train_fnames;
       batchsize = args.batch_size,
       bufsize = args.batch_size * 128,
       id = "imgloader_train",
       statstracker = tracker,
-    ),
-    2,
-    id = "gpudl_train",
-    statstracker = tracker,
-  )
-  testset = GPUBufDataLoader(
+    ) |> GPUDataLoader
+
+  testset =
     ImageAndMaskLoader(
       test_fnames;
       batchsize = args.batch_size,
       bufsize = args.batch_size * 8,
       id = "imgloader_test",
       statstracker = tracker,
-    ),
-    2,
-    id = "gpudl_test",
-    statstracker = tracker,
-  )
-
+    ) |> GPUDataLoader
 
   trainset, testset
 end
@@ -111,7 +125,7 @@ function testset_loss(loss, testset)
 end
 
 
-function train(args::Union{Nothing,TrainArgs}; kwargs...)
+function train(args::TrainArgs; model, kwargs...)
   if args == nothing
     args =
       TrainArgs(test_set_ratio = 0.05, img_dir = expanduser("~/data/hair/hairy/exp/full128_0120"))
@@ -123,8 +137,10 @@ function train(args::Union{Nothing,TrainArgs}; kwargs...)
   trainset, testset = prepare_data(args, tracker)
 
   if args.previous_saved_model == nothing
-    @info "Making model"
-    m = Models.build_model_simple(args.blocksizes) |> gpu
+    if model == nothing
+      throw(ArgumentError("model must not be nothing if args.previous_saved_model is not set"))
+    end
+    m = model |> gpu
   else
     @info "Loading previous model"
     Core.eval(Main, :(import NNlib))
@@ -135,6 +151,9 @@ function train(args::Union{Nothing,TrainArgs}; kwargs...)
   loss(x, y) = sum(Flux.Losses.binarycrossentropy(m(x), y))
   loss(t::Tuple{X,X} where {X}) = loss(t...)
 
+  if !isdir(args.savepath)
+    mkdir(args.savepath)
+  end
   model_dir = joinpath(args.savepath, Dates.format(Dates.now(), "yyyymmdd-HHMM"))
   if !isdir(model_dir)
     mkdir(model_dir)

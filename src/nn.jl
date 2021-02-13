@@ -130,15 +130,19 @@ function binsegmetrics(ŷ::AbstractArray{Bool,N}, y::AbstractArray{Bool,N}) whe
   tn = count(nŷ .& ny)
   fn = count(nŷ) - tn
 
-  p = tp / (tp+fp)
-  r = tp / (tp+fn)
-  f1 = 2*p*r / (p+r)
+  p = tp / (tp + fp)
+  r = tp / (tp + fn)
+  f1 = 2 * p * r / (p + r)
 
-  BinarySegmentationMetrics( (p, r, f1, ap_ŷ, ap_y, tp, tn, fp, fn, npixels) )
+  BinarySegmentationMetrics((p, r, f1, ap_ŷ, ap_y, tp, tn, fp, fn, npixels))
 end
 
 
-function binsegmetrics(ŷ::AbstractArray{T,N}, y::AbstractArray{T,N}, threshold::AbstractFloat=0.1) where {T<:AbstractFloat,N}
+function binsegmetrics(
+  ŷ::AbstractArray{T,N},
+  y::AbstractArray{T,N},
+  threshold::AbstractFloat = 0.1,
+) where {T<:AbstractFloat,N}
   ŷ = (ŷ .> threshold)
   y = (y .> threshold)
   binsegmetrics(ŷ, y)
