@@ -79,7 +79,7 @@ end
 @with_kw struct SeluSimpleArgs
   blocksizes::Vector{Int} = [2, 2, 2, 2, 2]
   kernelsizes::Vector{NTuple{2,Int}} = [(3, 3), (3, 3), (3, 3), (3, 3), (3,3)]
-  σ::Function = relu
+  σ::Function = leakyrelu
 end
 
 maxpool() = MaxPool((2, 2))

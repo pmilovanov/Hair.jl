@@ -179,8 +179,11 @@ function prf1(model, testset)
   n = 0
   for (x, y) in testset
     ŷ = model(x)
-    p += precision(ŷ, y)
-    r += recall(ŷ, y)
+    metrics = binsegmetrics(ŷ, y)
+    
+    
+    p += metrics.precision
+    r += metrics.recall
     n += 1
   end
   p, r = p / n, r / n
