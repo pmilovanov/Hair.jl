@@ -47,6 +47,7 @@ end
   savepath::String = "./"
   test_set_ratio = 0.2
   previous_saved_model = nothing
+  only_save_model_if_better = true
 end
 
 readdir_nomasks(dirpath::String) =
@@ -125,6 +126,10 @@ function testset_loss(loss, testset)
 end
 
 
+bce_loss(model) = (x, y) -> sum(Flux.Losses.binarycrossentropy(model(x), y))
+bce_loss_tuple(model) = xy -> bce_loss(model)(xy...)
+
+
 function train(args::TrainArgs; model, kwargs...)
   @info "Number of threads: $(Threads.nthreads())"
   tracker = StatsTracker()
@@ -144,8 +149,6 @@ function train(args::TrainArgs; model, kwargs...)
     m = model |> gpu
   end
 
-  loss(x, y) = sum(Flux.Losses.binarycrossentropy(m(x), y))
-  loss(t::Tuple{X,X} where {X}) = loss(t...)
 
   if !isdir(args.savepath)
     mkdir(args.savepath)
@@ -172,14 +175,14 @@ function train(args::TrainArgs; model, kwargs...)
       next!(p)
       lasttime[] = time_ns()
     end
-    Flux.train!(loss, params(m), trainset, opt, cb = iteration_callback)
+    Flux.train!(bce_loss(m), params(m), trainset, opt, cb = iteration_callback)
     #p,r,f1 = prf1(m, testset)
     #@printf("Epoch %3d PRF1: %0.3f   %0.3f   %0.3f   --- ", i, p, r, f1)
 
     p, r, f1 = prf1(m, testset)
-    @printf("TEST  : P=%0.3f  R=%0.3f F1=%0.3f", p, r, f1)
+    @info @sprintf("TEST  : P=%0.3f R=%0.3f F1=%0.3f", p, r, f1)
 
-    if f1 > f1_old
+    if args.only_save_model_if_better==false || f1 > f1_old
       modelfilename = joinpath(model_dir, @sprintf("epoch_%03d.bson", i))
       model = cpu(m)
       @save modelfilename model
@@ -189,15 +192,16 @@ function train(args::TrainArgs; model, kwargs...)
     if mod(i, 5) == 0
       trainset = reset(trainset)
       p, r, f1 = prf1(m, trainset)
-      @printf("TRAIN : P=%0.3f  R=%0.3f F1=%0.3f", p, r, f1)
+      @info @sprintf("TRAIN : P=%0.3f R=%0.3f F1=%0.3f", p, r, f1)
     end
     #    @show f2
 
-    stats = snapshot(tracker)
-    for k in sort(collect(keys(stats)))
-      println("----------- $k -------------")
-      show(stats[k])
-    end
+
+    # stats = snapshot(tracker)
+    # for k in sort(collect(keys(stats)))
+    #   println("----------- $k -------------")
+    #   show(stats[k])
+    # end
 
     trainset, testset = reset(trainset), reset(testset)
   end

@@ -6,12 +6,24 @@ using Flux: throttle, logitbinarycrossentropy
 import ..Upsample, ..SkipUnit
 using Parameters: @with_kw
 
+
+abstract type ModelArgs end
+
+struct ModelWArgs{M,A<:ModelArgs}
+  model::M
+  args::A
+end
+
+(mwa::ModelWArgs)(x::AbstractArray) = mwa.model(x)
+model(mwa::ModelWArgs) = mwa.model
+args(mwa::ModelWArgs) = mwa.args
+
 function conv_block(
   nunits::Int,
   k::Tuple{Int,Int},
   ch::Pair{<:Integer,<:Integer},
   σ = relu;
-  pad = SamePad(),
+  pad = (1,1),
   stride = (1, 1),
   kwargs...,
 ) where {N}
@@ -19,54 +31,12 @@ function conv_block(
   for i = 1:nunits-1
     push!(chain, Conv(k, last(ch) => last(ch), σ; pad = pad, stride = stride, kwargs...))
     if σ != selu
+      @info "hi ho let's go"
       push!(chain, BatchNorm(last(ch)))
     end
   end
   Chain(chain...)
 end
-
-# function build_model(args::TrainArgs = TrainArgs())
-
-#   maxpool() = MaxPool((2, 2))
-
-#   convs3 = Chain( # DebugPrintSize("conv0"),
-#                   conv_block(2, (3, 3), 3 => 64), # DebugPrintSize("convs1"),
-#                   maxpool(),
-#                   conv_block(3, (3, 3), 64 => 128), # DebugPrintSize("convs2"),
-#                   maxpool(),
-#                   conv_block(3, (3, 3), 128 => 256), # DebugPrintSize("convs3"),
-#                   )
-
-#   convs5 = Chain(
-#     convs3,
-#     maxpool(),
-#     conv_block(3, (3, 3), 256 => 512), # DebugPrintSize("convs4"),
-#     maxpool(),
-#     conv_block(3, (3, 3), 512 => 512), # DebugPrintSize("convs5"),
-#   )
-
-#   # transpose conv, upsamples 2x
-#   upsample_conv(channels::Pair{Int,Int}) =
-#     Chain(Upsample(), Conv((3, 3), channels, relu, pad = SamePad(), stride = (1, 1)))
-
-#   convs5u2 = Chain(
-#     convs5,
-#     upsample_conv(512 => 256),
-#     BatchNorm(256),
-#     upsample_conv(256 => 256),
-#     BatchNorm(256),
-#   )
-
-#   stacked1u2 = Chain(
-#     StackChannels(convs5u2, convs3),
-#     upsample_conv(512 => 64),
-#     BatchNorm(256),
-#     upsample_conv(64 => 1),
-#   )
-
-#   return stacked1u2
-
-# end
 
 upsample_conv(channels::Pair{Int,Int}, σ = relu) =
   Chain(Upsample(), Conv((5, 5), channels, σ, pad = SamePad(), stride = (1, 1)))
@@ -107,8 +77,9 @@ end
 
 ################################################################################
 @with_kw struct SeluSimpleArgs
-  blocksizes::Vector{Int} = [5, 5, 5, 5]
-  kernelsizes::Vector{NTuple{2,Int}} = [(7, 7), (7, 7), (7, 7), (7, 7)]
+  blocksizes::Vector{Int} = [2, 2, 2, 2, 2]
+  kernelsizes::Vector{NTuple{2,Int}} = [(3, 3), (3, 3), (3, 3), (3, 3), (3,3)]
+  σ::Function = relu
 end
 
 maxpool() = MaxPool((2, 2))
@@ -116,28 +87,32 @@ maxpool() = MaxPool((2, 2))
 function selu_simple(a::SeluSimpleArgs = SeluSimpleArgs())
 
   convs3 = Chain(# DebugPrintSize("conv0"),
-    conv_block(a.blocksizes[1], a.kernelsizes[1], 3 => 16, selu),
+    conv_block(a.blocksizes[1], a.kernelsizes[1], 3 => 16, a.σ),
     # DebugPrintSize("convs1"),
     maxpool(),
-    conv_block(a.blocksizes[2], a.kernelsizes[2], 16 => 24, selu),
+    conv_block(a.blocksizes[2], a.kernelsizes[2], 16 => 24, a.σ),
     # DebugPrintSize("convs2"),
     maxpool(),
-    conv_block(a.blocksizes[3], a.kernelsizes[3], 24 => 32, selu),
+    conv_block(a.blocksizes[3], a.kernelsizes[3], 24 => 32, a.σ),
     # DebugPrintSize("convs3"),
   )
   convs4u1 = Chain(
     maxpool(),
-    conv_block(a.blocksizes[4], a.kernelsizes[4], 32 => 64, selu),
+    conv_block(a.blocksizes[4], a.kernelsizes[4], 32 => 64, a.σ),
     #   DebugPrintSize("convs4"),
-    upsample_conv(64 => 32, selu),
+    upsample_conv(64 => 32, a.σ),
     # BatchNorm(32),
     #    DebugPrintSize("convs4u1"),
   )
   stacked1u2 = Chain(
-    SkipUnit(convs3, convs4u1),
-    upsample_conv(64 => 16, selu),
+    # SkipUnit(convs3, convs4u1),
+    convs3,
+    convs4u1,
+    upsample_conv(32 => 16, a.σ),
+#    conv_block(a.blocksizes[5], a.kernelsizes[5], 16=>16, a.σ)  
     # BatchNorm(16),
     Upsample(),
+ #   conv_block(a.blocksizes[5], a.kernelsizes[5], 16=>16, a.σ)
     Conv((5, 5), 16 => 1, σ, pad = SamePad(), stride = (1, 1)),
     #    DebugPrintSize("stacked1u2"),
   )

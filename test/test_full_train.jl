@@ -7,14 +7,17 @@ H = Hair
 
 @testset "A couple of epochs trained on a basic model" begin
 
-  tdir = H.TestUtil.write_dummy_images_masks(200, 128)
+  tdir = H.TestUtil.write_dummy_images_masks2(2000, 256)
+
+  @info "Images dir: $(tdir)"
 
   savepath = mktempdir(cleanup = false)
 
-  model = H.Models.selu_simple()
+  model = H.Models.build_model_simple([5,5,5,5])
+#  model = H.Models.selu_simple()
 
   model_dir = H.train(
-    H.TrainArgs(img_dir = tdir, test_set_ratio = 0.5, epochs = 2, savepath = savepath),
+    H.TrainArgs(img_dir = tdir, test_set_ratio = 0.5, epochs = 5, savepath = savepath, only_save_model_if_better=false),
     model = model,
   )
 
@@ -30,7 +33,7 @@ H = Hair
   dataset = H.ImageAndMaskLoader(H.readdir_nomasks(tdir), batchsize = 4, bufsize = 10)
   for (x, y) in dataset
     ŷ = model(gpu(x))
-    @test size(ŷ) == (128, 128, 1, 4)
+    @test size(ŷ) == (256, 256, 1, 4)
     break
   end
 end
