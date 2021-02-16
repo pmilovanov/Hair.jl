@@ -10,6 +10,9 @@ using ProgressMeter
 using BSON: @load, @save
 import Dates
 using NNlib
+import JSON3
+
+using .Models
 
 if has_cuda()
   CUDA.allowscalar(false)
@@ -105,20 +108,6 @@ function prepare_data(args::TrainArgs, tracker = StatsTracker())
 end
 
 
-function prepare_data_old(args::TrainArgs)
-  X, Y = load_data(args.img_dir)
-  X_train, Y_train, X_test, Y_test = test_train_split(X, Y, args.test_set_ratio)
-
-  trainset =
-    DataLoader((X_train, Y_train), batchsize = args.batch_size, shuffle = true, partial = false) |>
-    GPUDataLoader
-  testset =
-    DataLoader((X_test, Y_test), batchsize = args.batch_size, shuffle = false, partial = true) |>
-    GPUDataLoader
-
-  trainset, testset
-end
-
 
 function testset_loss(loss, testset)
   losses = [loss(x, y) for (x, y) in testset]
@@ -130,18 +119,20 @@ bce_loss(model) = (x, y) -> sum(Flux.Losses.binarycrossentropy(model(x), y))
 bce_loss_tuple(model) = xy -> bce_loss(model)(xy...)
 
 
-function train(args::TrainArgs; model, kwargs...)
+function train(args::TrainArgs, am::Union{Models.AnnotatedModel, Nothing}=nothing; kwargs...)
   @info "Number of threads: $(Threads.nthreads())"
   tracker = StatsTracker()
 
   @info "Setting up data"
   trainset, testset = prepare_data(args, tracker)
 
+  Models.setmeta!(am, :train_args, args)
+
   if args.previous_saved_model == nothing
-    if model == nothing
+    if am == nothing
       throw(ArgumentError("model must not be nothing if args.previous_saved_model is not set"))
     end
-    m = model |> gpu
+    m = Models.model(am) |> gpu
   else
     @info "Loading previous model"
     Core.eval(Main, :(import NNlib))
@@ -150,13 +141,9 @@ function train(args::TrainArgs; model, kwargs...)
   end
 
 
-  if !isdir(args.savepath)
-    mkdir(args.savepath)
-  end
   model_dir = joinpath(args.savepath, Dates.format(Dates.now(), "yyyymmdd-HHMM"))
-  if !isdir(model_dir)
-    mkdir(model_dir)
-  end
+  isdir(args.savepath) || mkdir(args.savepath)
+  isdir(model_dir) || mkdir(model_dir)
 
   opt = ADAM(args.lr)
   @info("Training....")
@@ -180,12 +167,16 @@ function train(args::TrainArgs; model, kwargs...)
     #@printf("Epoch %3d PRF1: %0.3f   %0.3f   %0.3f   --- ", i, p, r, f1)
 
     p, r, f1 = prf1(m, testset)
+    Models.setmeta!(am, :metrics, Dict(:p=>p, :r=>r, :f1=>f1))
     @info @sprintf("TEST  : P=%0.3f R=%0.3f F1=%0.3f", p, r, f1)
 
     if args.only_save_model_if_better==false || f1 > f1_old
       modelfilename = joinpath(model_dir, @sprintf("epoch_%03d.bson", i))
+      metafilename = joinpath(model_dir, @sprintf("epoch_%03d.json", i))
       model = cpu(m)
       @save modelfilename model
+      Models.savemeta(am, metafilename)
+      
       @info "Saved model to $modelfilename"
     end
 
@@ -209,8 +200,3 @@ function train(args::TrainArgs; model, kwargs...)
   return model_dir
 end
 
-# function main() end
-
-# if abspath(PROGRAM_FILE) == @__FILE__
-#    train()
-# end

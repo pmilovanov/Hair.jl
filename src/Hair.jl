@@ -20,6 +20,5 @@ include("models/Models.jl")
 include("train.jl")
 include("eval.jl")
 
-export sample_image, GridStrategy
 
 end

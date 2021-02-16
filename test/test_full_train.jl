@@ -7,7 +7,7 @@ H = Hair
 
 @testset "A couple of epochs trained on a basic model" begin
 
-  tdir = H.TestUtil.write_dummy_images_masks2(2000, 256)
+  tdir = H.TestUtil.write_dummy_images_masks2(100, 256)
 
   @info "Images dir: $(tdir)"
 
@@ -18,7 +18,7 @@ H = Hair
 
   model_dir = H.train(
     H.TrainArgs(img_dir = tdir, test_set_ratio = 0.5, epochs = 5, savepath = savepath, only_save_model_if_better=false),
-    model = model,
+    model,
   )
 
   for p in ["epoch_001.bson", "epoch_002.bson"]

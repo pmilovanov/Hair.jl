@@ -700,6 +700,12 @@ git-tree-sha1 = "66397cc6c08922f98a28ab05a8d3002f9853b129"
 uuid = "2535ab7d-5cd8-5a07-80ac-9b1792aadce3"
 version = "0.3.2"
 
+[[JSON3]]
+deps = ["Dates", "Mmap", "Parsers", "StructTypes", "UUIDs"]
+git-tree-sha1 = "961ef1c3e5c8a595d5bec270a9007429ef12ed10"
+uuid = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
+version = "1.5.1"
+
 [[JpegTurbo_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "9aff0587d9603ea0de2c6f6300d9f9492bbefbd3"
@@ -1250,6 +1256,12 @@ deps = ["Adapt", "DataAPI", "Tables"]
 git-tree-sha1 = "26ea43b4be7e919a2390c3c0f824e7eb4fc19a0a"
 uuid = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
 version = "0.5.0"
+
+[[StructTypes]]
+deps = ["Dates", "UUIDs"]
+git-tree-sha1 = "65a43f5218197bc7091b76bc273a5e323a1d7b0d"
+uuid = "856f2bd8-1eba-4b0a-8007-ebc267875bd4"
+version = "1.2.3"
 
 [[SweepOperator]]
 deps = ["LinearAlgebra"]
