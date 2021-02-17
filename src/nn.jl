@@ -180,8 +180,8 @@ function prf1(model, testset)
   for (x, y) in testset
     ŷ = model(x)
     metrics = binsegmetrics(ŷ, y)
-    
-    
+
+
     p += metrics.precision
     r += metrics.recall
     n += 1

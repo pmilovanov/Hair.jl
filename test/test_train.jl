@@ -69,18 +69,20 @@ end
     @test !all(z2 .== 0)
   end
 
-  let x = rand(Float32, 128, 128, 3, 1), y = rand(Float32, 128,128,1,1)
+  let x = rand(Float32, 128, 128, 3, 1), y = rand(Float32, 128, 128, 1, 1)
     m = H.Models.selu_simple(H.Models.SeluSimpleArgs())
     ŷ = m(x)
 
     checkok(x) = (!all(x .== 0) && all(x .!= NaN))
-    
+
     @test checkok(ŷ)
 
     opt = ADAM(3e-3)
     ps = Zygote.Params(params(m))
     loss = H.bce_loss(m)
-    gs = gradient(ps) do; loss(x,y); end
+    gs = gradient(ps) do
+      loss(x, y)
+    end
 
     for p in ps
       @test checkok(gs[p])

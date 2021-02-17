@@ -13,11 +13,17 @@ H = Hair
 
   savepath = mktempdir(cleanup = false)
 
-  model = H.Models.build_model_simple([5,5,5,5])
-#  model = H.Models.selu_simple()
+  model = H.Models.build_model_simple([5, 5, 5, 5])
+  #  model = H.Models.selu_simple()
 
   model_dir = H.train(
-    H.TrainArgs(img_dir = tdir, test_set_ratio = 0.5, epochs = 5, savepath = savepath, only_save_model_if_better=false),
+    H.TrainArgs(
+      img_dir = tdir,
+      test_set_ratio = 0.5,
+      epochs = 5,
+      savepath = savepath,
+      only_save_model_if_better = false,
+    ),
     model,
   )
 

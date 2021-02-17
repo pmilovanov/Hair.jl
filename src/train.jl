@@ -119,7 +119,7 @@ bce_loss(model) = (x, y) -> sum(Flux.Losses.binarycrossentropy(model(x), y))
 bce_loss_tuple(model) = xy -> bce_loss(model)(xy...)
 
 
-function train(args::TrainArgs, am::Union{Models.AnnotatedModel, Nothing}=nothing; kwargs...)
+function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing} = nothing; kwargs...)
   @info "Number of threads: $(Threads.nthreads())"
   tracker = StatsTracker()
 
@@ -167,16 +167,16 @@ function train(args::TrainArgs, am::Union{Models.AnnotatedModel, Nothing}=nothin
     #@printf("Epoch %3d PRF1: %0.3f   %0.3f   %0.3f   --- ", i, p, r, f1)
 
     p, r, f1 = prf1(m, testset)
-    Models.setmeta!(am, :metrics, Dict(:p=>p, :r=>r, :f1=>f1))
+    Models.setmeta!(am, :metrics, Dict(:p => p, :r => r, :f1 => f1))
     @info @sprintf("TEST  : P=%0.3f R=%0.3f F1=%0.3f", p, r, f1)
 
-    if args.only_save_model_if_better==false || f1 > f1_old
+    if args.only_save_model_if_better == false || f1 > f1_old
       modelfilename = joinpath(model_dir, @sprintf("epoch_%03d.bson", i))
       metafilename = joinpath(model_dir, @sprintf("epoch_%03d.json", i))
       model = cpu(m)
       @save modelfilename model
       Models.savemeta(am, metafilename)
-      
+
       @info "Saved model to $modelfilename"
     end
 
@@ -199,4 +199,3 @@ function train(args::TrainArgs, am::Union{Models.AnnotatedModel, Nothing}=nothin
 
   return model_dir
 end
-
