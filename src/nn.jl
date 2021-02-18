@@ -90,7 +90,7 @@ struct DebugPrintSize
 end
 Flux.@functor DebugPrintSize
 function (f::DebugPrintSize)(x::AbstractArray)
-  @info "Output $(f.name): $(size(x))"
+  println("Output $(f.name): $(size(x))")
   x
 end
 

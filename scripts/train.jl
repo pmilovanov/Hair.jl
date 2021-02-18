@@ -1,11 +1,15 @@
 using Hair
+using NNlib
+
+
+
 
 if abspath(PROGRAM_FILE) == @__FILE__
 
   model = Hair.Models.simple(
-    Models.SimpleArgs(
+    Hair.Models.SimpleArgs(
       blocksizes = [5, 5, 5, 5, 5],
-      kernelsizes = [(7, 7), (7, 7), (7, 7), (7, 7), (7, 7)],
+      kernelsizes = [(5, 5), (5, 5), (5, 5), (5, 5), (5, 5)],
       σ = leakyrelu,
     ),
   )
@@ -23,6 +27,6 @@ if abspath(PROGRAM_FILE) == @__FILE__
       batch_size = 16,
       epochs = 1000,
     ),
-    model = model,
+    model,
   )
 end

@@ -11,6 +11,8 @@ using BSON: @load, @save
 import Dates
 using NNlib
 import JSON3
+using Logging
+using TensorBoardLogger
 
 using .Models
 
@@ -119,7 +121,7 @@ bce_loss(model) = (x, y) -> sum(Flux.Losses.binarycrossentropy(model(x), y))
 bce_loss_tuple(model) = xy -> bce_loss(model)(xy...)
 
 
-function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing} = nothing; kwargs...)
+function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing}; kwargs...)
   @info "Number of threads: $(Threads.nthreads())"
   tracker = StatsTracker()
 
@@ -145,11 +147,17 @@ function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing} = nothi
   isdir(args.savepath) || mkdir(args.savepath)
   isdir(model_dir) || mkdir(model_dir)
 
+  logdir=joinpath(model_dir, "tb")
+  logger = TBLogger(logdir, tb_overwrite)
+
+  
   opt = ADAM(args.lr)
   @info("Training....")
   # Starting to train models
   f1_old = 0.0
 
+
+  
   for i = 1:args.epochs
     p = Progress(length(trainset), dt = 1.0, desc = "Epoch $i: ")
 
@@ -162,13 +170,16 @@ function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing} = nothi
       next!(p)
       lasttime[] = time_ns()
     end
+    
     Flux.train!(bce_loss(m), params(m), trainset, opt, cb = iteration_callback)
-    #p,r,f1 = prf1(m, testset)
-    #@printf("Epoch %3d PRF1: %0.3f   %0.3f   %0.3f   --- ", i, p, r, f1)
 
     p, r, f1 = prf1(m, testset)
     Models.setmeta!(am, :metrics, Dict(:p => p, :r => r, :f1 => f1))
-    @info @sprintf("TEST  : P=%0.3f R=%0.3f F1=%0.3f", p, r, f1)
+    @info @sprintf("Testset PRF1: %0.3f %0.3f %0.3f", p, r, f1)
+    
+    trainset = reset(trainset)
+    trp, trr, tf1 = prf1(m, trainset)
+    @info @sprintf("Testset PRF1: %0.3f %0.3f %0.3f", trp, trr, trf1)
 
     if args.only_save_model_if_better == false || f1 > f1_old
       modelfilename = joinpath(model_dir, @sprintf("epoch_%03d.bson", i))
@@ -176,17 +187,13 @@ function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing} = nothi
       model = cpu(m)
       @save modelfilename model
       Models.savemeta(am, metafilename)
-
       @info "Saved model to $modelfilename"
     end
-
-    if mod(i, 5) == 0
-      trainset = reset(trainset)
-      p, r, f1 = prf1(m, trainset)
-      @info @sprintf("TRAIN : P=%0.3f R=%0.3f F1=%0.3f", p, r, f1)
+    
+    with_logger(logger) do      
+      @info "test" precision=p recall=r f1=f1
+      @info "train" precision=trp recall=trr f1=trf1
     end
-    #    @show f2
-
 
     # stats = snapshot(tracker)
     # for k in sort(collect(keys(stats)))

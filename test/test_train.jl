@@ -70,7 +70,10 @@ end
   end
 
   let x = rand(Float32, 128, 128, 3, 1), y = rand(Float32, 128, 128, 1, 1)
-    m = H.Models.selu_simple(H.Models.SeluSimpleArgs())
+    m = H.Models.simple(H.Models.SimpleArgs(
+      blocksizes=[3,3,3,3,3],
+      kernelsizes=[(5,5), (5,5), (5,5), (5,5), (5,5)]
+    ))
     ŷ = m(x)
 
     checkok(x) = (!all(x .== 0) && all(x .!= NaN))
