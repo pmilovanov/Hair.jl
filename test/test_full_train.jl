@@ -4,17 +4,18 @@ using Images, Flux
 using BSON
 
 H = Hair
+M = Hair.Models
 
 @testset "A couple of epochs trained on a basic model" begin
 
-  tdir = H.TestUtil.write_dummy_images_masks2(100, 256)
+  tdir = H.TestUtil.write_dummy_images_masks2(2000, 256)
 
   @info "Images dir: $(tdir)"
 
   savepath = mktempdir(cleanup = false)
 
-  model = H.Models.build_model_simple([5, 5, 5, 5])
-  #  model = H.Models.selu_simple()
+  #model = H.Models.build_model_simple([2, 2, 2, 2])
+  model = M.simple(M.SimpleArgs())
 
   model_dir = H.train(
     H.TrainArgs(
@@ -26,6 +27,8 @@ H = Hair
     ),
     model,
   )
+
+  @info "Model dir: $(model_dir)"
 
   for p in ["epoch_001.bson", "epoch_002.bson"]
     fname = joinpath(model_dir, p)

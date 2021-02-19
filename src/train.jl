@@ -150,13 +150,13 @@ function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing}; kwargs
   logdir=joinpath(model_dir, "tb")
   logger = TBLogger(logdir, tb_overwrite)
 
-  
   opt = ADAM(args.lr)
-  @info("Training....")
+  @info("Starting training...")
   # Starting to train models
-  f1_old = 0.0
+  f1_old = 0
 
 
+  first_iteration = true
   
   for i = 1:args.epochs
     p = Progress(length(trainset), dt = 1.0, desc = "Epoch $i: ")
@@ -164,6 +164,10 @@ function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing}; kwargs
     lasttime = Ref(time_ns())
 
     function iteration_callback()
+      if first_iteration
+        @info @sprintf("Training started in %0.2f seconds", (time_ns() - lasttime[])/1e9)
+        first_iteration = false
+      end
       curtime = time_ns()
       elapsed = (curtime - lasttime[]) / 1e9
       report!(tracker, "train_iteration_time", elapsed)
@@ -175,11 +179,11 @@ function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing}; kwargs
 
     p, r, f1 = prf1(m, testset)
     Models.setmeta!(am, :metrics, Dict(:p => p, :r => r, :f1 => f1))
-    @info @sprintf("Testset PRF1: %0.3f %0.3f %0.3f", p, r, f1)
+    @info @sprintf(" PRF1 TEST: %0.3f %0.3f %0.3f", p, r, f1)
     
     trainset = reset(trainset)
-    trp, trr, tf1 = prf1(m, trainset)
-    @info @sprintf("Testset PRF1: %0.3f %0.3f %0.3f", trp, trr, trf1)
+    trp, trr, trf1 = prf1(m, trainset)
+    @info @sprintf("PRF1 TRAIN: %0.3f %0.3f %0.3f", trp, trr, trf1)
 
     if args.only_save_model_if_better == false || f1 > f1_old
       modelfilename = joinpath(model_dir, @sprintf("epoch_%03d.bson", i))
