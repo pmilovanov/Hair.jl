@@ -123,7 +123,8 @@ bce_loss_tuple(model) = xy -> bce_loss(model)(xy...)
 
 function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing}; kwargs...)
   @info "Number of threads: $(Threads.nthreads())"
-  tracker = StatsTracker()
+  #tracker = StatsTracker()
+  tracker = nothing
 
   @info "Setting up data"
   trainset, testset = prepare_data(args, tracker)
