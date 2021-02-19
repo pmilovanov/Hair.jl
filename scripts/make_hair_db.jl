@@ -19,17 +19,10 @@ function parse_flags()
 end
 
 function main(input_dir, output)
-
   hairsets = []
   fnames = [fn for fn in readdir(input_dir, join = true) if endswith(fn, ".png")]
 
   p = Progress(length(fnames), 1)
-  # for fname in fnames
-  #   hairset = H.gen_single_hairs(load(fname), n=10000)
-  #   push!(hairsets, hairset)
-  #   next!(p)
-  # end
-
   c = Channel(32)
 
   compute_hairs(ch::Channel, fname) = put!(c, H.gen_single_hairs(load(fname)))
@@ -47,7 +40,6 @@ function main(input_dir, output)
   println("Writing file")
   hairs = cat(hairsets..., dims = 1)
   @save output hairs
-
 end
 
 args = parse_flags()

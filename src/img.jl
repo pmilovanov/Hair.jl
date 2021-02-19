@@ -3,10 +3,7 @@ import Base.isless
 import ImageDraw
 using OffsetArrays
 
-
 const IDr = ImageDraw
-
-
 
 
 const Point2 = Tuple{Int,Int}
@@ -143,7 +140,6 @@ pprint(A::Array{Gray{T},N}) where {N,T} = pprint(Float64.(A))
 
 
 
-
 function ontop(top::TC, bottom::C)::C where {TC<:TransparentColor{C}} where {C<:Color{T}} where {T}
   α, c = alpha(top), color(top)
   c * α + (1 - α)bottom
@@ -240,10 +236,7 @@ function matte_with_color(img::Image{C}, matte::C)::Image{TransparentColor{C}} w
 
     fpixel = convert(ccolor(Color{Float64}, typeof(pixel)), pixel)
     q = (α == 0.0) ? typeof(pixel)(1) : ((fpixel .- matte) ./ α .+ matte)
-    # if (α > 0.0)
-    #   @show (fpixel .- matte), ((fpixel .- matte) ./ α)
-    # end
-    # @show α, q
+
     α = convert(eltype(pixel), α)
     q = convert(typeof(pixel), q)
     coloralpha(q, α)
@@ -262,5 +255,3 @@ matte_with_color(img::Image{TC}, matte::TC) where {TC<:TransparentColor} =
 
 matte_with_color(img::Image{C} where {C<:Colorant}) = matte_with_color(img, mode(img))
 
-
-#imresize_aa

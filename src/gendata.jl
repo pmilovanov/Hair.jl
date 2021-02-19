@@ -106,10 +106,6 @@ function put_hairs(dest::Image, n::Int, allhairs::Array{<:Image{T},1} where {T},
   dest, mask
 end
 
-
-
-
-
 @kwdef struct MakeHairySquaresOptions
   samples_per_pic = 20
   square_size = 512
