@@ -1,7 +1,7 @@
 # Functions to generate training data using stuff from img.jl
 
 using Base.Threads: @spawn
-using Base: @kwdef
+using Parameters: @with_kw
 using Images
 using Printf
 using ProgressMeter
@@ -12,7 +12,7 @@ abstract type SamplingStrategy end
 
 sample_image(img::Image{T}, s::S) where {T,S<:SamplingStrategy} = error("Not implemented")
 
-@kwdef struct GridStrategy <: SamplingStrategy
+@with_kw struct GridStrategy <: SamplingStrategy
   n::Int = 0
   side::Int = 128
   overlap::Int = 10
@@ -63,25 +63,44 @@ end
 
 
 iminvert(img::Image{C}) where {C<:Color} = convert(eltype(img), 1.0) .- img
-iminvert(img::Image{TC}) where {TC<:TransparentColor} = coloralpha.(color.(img), alpha.(img))
+iminvert(img::Image{TC}) where {TC<:TransparentColor} = coloralpha.(iminvert(color.(img)), alpha.(img))
 
 
-function t_random(; scale = (0.25, 1), θ = (0, 2π), opacity = (0.6, 1), invert_prob = 0.5)
-  randrange(rmin, rmax) = rand() * (rmax - rmin) + rmin
-  function transform(img::Image{TC}) where {TC<:TransparentColor}
-
-    imgcolor, imgα = color.(img), alpha.(img)
-    imgα = convert.(eltype(eltype(img)), imgα .* randrange(opacity...))
-    if (rand() < invert_prob)
-      imgcolor = iminvert(imgcolor)
-    end
-    img = coloralpha.(imgcolor, imgα)
-
-    img = imrotate(img, randrange(θ...))
-    img = imresize(img, ratio = randrange(scale...))
-  end
+function imblur(img::Image{TC}, σ::AbstractFloat, kernel_size::Int=9; pad::Bool= true) where TC<:Colorant
+  img = padarray(img, Fill(zero(TC), (kernel_size, kernel_size), (kernel_size, kernel_size)))
+  k = centered(Kernel.gaussian([σ, σ], [kernel_size, kernel_size]))
+  imfilter(img, k)
 end
 
+@with_kw struct RandomizedTransformParams{T<:AbstractFloat} 
+  scale::Tuple{T,T} = (0.25, 1)
+  θ::Tuple{T,T} = (0, 2π)
+  opacity::Tuple{T,T} = (0.3, 1)
+  invert_prob::T = 0.2
+
+  blur_prob::T = 0.4
+  blur_max_σ::T = 20.0
+  blur_kernel_size::Int = 9
+
+  gradient_prob::T = 0.1
+  gradient_θ::Tuple{T,T} = (0, 2π)
+end
+
+function t_random(p::RandomizedTransformParams=RandomizedTransformParams{Float64}())
+  randrange(rmin, rmax) = rand() * (rmax - rmin) + rmin
+  
+  function transform(img::Image{TC}) where {TC<:TransparentColor}
+    imgcolor, imgα = color.(img), alpha.(img)
+    imgα = convert.(eltype(eltype(img)), imgα .* randrange(p.opacity...))
+    
+    imgcolor = rand() < p.invert_prob ? iminvert(imgcolor) : imgcolor
+    img = coloralpha.(imgcolor, imgα)
+
+    img = rand() < p.blur_prob ? imblur(img, rand()*p.blur_max_σ, p.blur_kernel_size) : img
+    img = imrotate(img, randrange(p.θ...))
+    img = imresize(img, ratio = randrange(p.scale...))
+  end
+end
 
 function put_hairs(dest::Image, n::Int, allhairs::Array{<:Image{T},1} where {T}, transform_fn)
   dest = copy(dest)
@@ -98,7 +117,7 @@ function put_hairs(dest::Image, n::Int, allhairs::Array{<:Image{T},1} where {T},
   dest, mask
 end
 
-@kwdef struct MakeHairySquaresOptions
+@with_kw struct MakeHairySquaresOptions
   samples_per_pic::Int = 20
   square_size::Int = 512
   prob_any_hairs::Float64 = 0.9

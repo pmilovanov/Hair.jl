@@ -92,7 +92,7 @@ function prepare_data(args::TrainArgs, tracker = StatsTracker())
     ImageAndMaskLoader(
       train_fnames;
       batchsize = args.batch_size,
-      bufsize = args.batch_size * 16,
+      bufsize = args.batch_size * 3,
       id = "imgloader_train",
       statstracker = tracker,
     ) |> GPUDataLoader
@@ -101,7 +101,7 @@ function prepare_data(args::TrainArgs, tracker = StatsTracker())
     ImageAndMaskLoader(
       test_fnames;
       batchsize = args.batch_size,
-      bufsize = args.batch_size * 8,
+      bufsize = args.batch_size * 3,
       id = "imgloader_test",
       statstracker = tracker,
     ) |> GPUDataLoader
@@ -180,11 +180,11 @@ function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing}; kwargs
 
     p, r, f1 = prf1(m, testset)
     Models.setmeta!(am, :metrics, Dict(:p => p, :r => r, :f1 => f1))
-    @info @sprintf(" PRF1 TEST: %0.3f %0.3f %0.3f", p, r, f1)
+    @info @sprintf(" PRF1 TEST: %0.4f %0.4f %0.4f", p, r, f1)
     
     trainset = reset(trainset)
     trp, trr, trf1 = prf1(m, trainset)
-    @info @sprintf("PRF1 TRAIN: %0.3f %0.3f %0.3f", trp, trr, trf1)
+    @info @sprintf("PRF1 TRAIN: %0.4f %0.4f %0.4f", trp, trr, trf1)
 
     if args.only_save_model_if_better == false || f1 > f1_old
       modelfilename = joinpath(model_dir, @sprintf("epoch_%03d.bson", i))
