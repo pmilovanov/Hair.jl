@@ -20,5 +20,6 @@ include("models/Models.jl")
 include("train.jl")
 include("eval.jl")
 
+export GridStrategy
 
 end

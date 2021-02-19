@@ -45,17 +45,16 @@ testdata(datasize::Int) =
     end
   end
 
-  @test H.sample_image(img, GridStrategy(side = 3, overlap = 1)) ==
+  @test H.sample_image(img, H.GridStrategy(side = 3, overlap = 1)) ==
         [si(1, 1), si(3, 1), si(1, 3), si(3, 3), si(4, 1), si(4, 3), si(1, 4), si(3, 4), si(4, 4)]
 
-  @test H.sample_image(img, GridStrategy(side = 3, overlap = 1, cover_edges = false)) ==
+  @test H.sample_image(img, H.GridStrategy(side = 3, overlap = 1, cover_edges = false)) ==
         [si(1, 1), si(3, 1), si(1, 3), si(3, 3)]
 
-  @test H.sample_image(img[1:5, :], GridStrategy(side = 3, overlap = 1)) ==
+  @test H.sample_image(img[1:5, :], H.GridStrategy(side = 3, overlap = 1)) ==
         [si(1, 1), si(3, 1), si(1, 3), si(3, 3), si(1, 4), si(3, 4)]
 
-
-  @test H.sample_image(img[1:5, 1:5], GridStrategy(side = 3, overlap = 1)) ==
+  @test H.sample_image(img[1:5, 1:5], H.GridStrategy(side = 3, overlap = 1)) ==
         [si(1, 1), si(3, 1), si(1, 3), si(3, 3)]
 end
 

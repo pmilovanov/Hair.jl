@@ -21,9 +21,7 @@ end
 
 
 function sample_image_w_coords(img::Image, s::GridStrategy)
-  if any(size(img) .< s.side)
-    return []
-  end
+  any(size(img) .< s.side) && return []
 
   times_fully_fits_into_length(l_into, l_given, overlap) =
     ((l_into - l_given) ÷ (l_given - overlap) + 1)
@@ -36,15 +34,9 @@ function sample_image_w_coords(img::Image, s::GridStrategy)
   if s.cover_edges
     cover_x = ((step * (nfits_x - 1) + s.side) != size(img)[1])
     cover_y = ((step * (nfits_y - 1) + s.side) != size(img)[2])
-    if cover_x
-      push!(candidates, [(size(img)[1] - s.side + 1, 1 + step * (i - 1)) for i = 1:nfits_y]...)
-    end
-    if cover_y
-      push!(candidates, [(1 + step * (i - 1), size(img)[2] - s.side + 1) for i = 1:nfits_x]...)
-    end
-    if cover_x && cover_y
-      push!(candidates, (size(img)[1] - s.side + 1, size(img)[2] - s.side + 1))
-    end
+    cover_x && push!(candidates, [(size(img)[1] - s.side + 1, 1 + step * (i - 1)) for i = 1:nfits_y]...)
+    cover_y && push!(candidates, [(1 + step * (i - 1), size(img)[2] - s.side + 1) for i = 1:nfits_x]...)
+    cover_x && cover_y && push!(candidates, (size(img)[1] - s.side + 1, size(img)[2] - s.side + 1))
   end
 
   samples =
@@ -107,9 +99,9 @@ function put_hairs(dest::Image, n::Int, allhairs::Array{<:Image{T},1} where {T},
 end
 
 @kwdef struct MakeHairySquaresOptions
-  samples_per_pic = 20
-  square_size = 512
-  prob_any_hairs = 0.8
+  samples_per_pic::Int = 20
+  square_size::Int = 512
+  prob_any_hairs::Float64 = 0.9
   max_hairs_per_output = 5
 end
 
@@ -133,9 +125,9 @@ function sample_image_and_add_hairs(
 end
 
 function make_hairy_squares(
-  hairs,
-  pics_dir,
-  output_dir,
+  hairs::Vector{<:Image{T}} where {T},
+  pics_dir::AbstractString,
+  output_dir::AbstractString,
   o::MakeHairySquaresOptions = MakeHairySquaresOptions(),
 )
   N_CHANNEL_PICS = 128
@@ -171,7 +163,6 @@ function make_hairy_squares(
   noutputs = length(pics_fnames) * o.samples_per_pic
 
   p = Progress(noutputs)
-
   for _ in c_progress
     next!(p)
   end
