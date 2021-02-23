@@ -96,7 +96,7 @@ function t_random(p::RandomizedTransformParams=RandomizedTransformParams{Float64
     imgcolor = rand() < p.invert_prob ? iminvert(imgcolor) : imgcolor
     img = coloralpha.(imgcolor, imgα)
 
-    img = rand() < p.blur_prob ? imblur(img, rand()*p.blur_max_σ, p.blur_kernel_size) : img
+    #img = rand() < p.blur_prob ? imblur(img, rand()*p.blur_max_σ, p.blur_kernel_size) : img
     img = imrotate(img, randrange(p.θ...))
     img = imresize(img, ratio = randrange(p.scale...))
   end

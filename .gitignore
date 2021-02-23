@@ -1,5 +1,7 @@
 .idea/*
 *.pyi
+*.dat
+*.mem
 venv/*
 /data/db/*
 #*
