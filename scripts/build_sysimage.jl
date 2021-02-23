@@ -1,75 +1,39 @@
+EXCLUDE_PACKAGES = ["ImageView"]
+
+#
+#
+#
+
 import Pkg
+
+cd(@__DIR__)
+cd("..")
+Pkg.activate(".")
 
 Pkg.precompile()
 
-using Hair
-
-using ArgParse
-using Base.Threads
-using Distributed
-using Flux
-using CUDA
-using ImageMagick
-using Images
-using Interpolations
-using JLD2
-using LinearAlgebra
-using MosaicViews
-using OffsetArrays
-using Parameters
-using Printf
-using ProgressMeter
-using Random
-using Statistics
-using StatsBase
-using Test
-using TestImages
-using Revise
-using JuliaFormatter
-
-
-
-
-curdir = pwd()
-cd(@__DIR__)
-include("../test/runtests.jl")
-
-
-cd(expanduser("~/.julia/sysimgs"))
-
 using PackageCompiler
+using ArgParse
+
+
+s = ArgParseSettings()
+@add_arg_table s begin
+  "--output", "-o"
+    arg_type=String
+    default = expanduser("~/.julia/sysimgs/custom.so")
+end
+args = parse_args(ARGS, s)
+
+
+@info "Running tests"
+@info "================================================================================"
+include("test/runtests.jl")
+
+symbols = [Symbol(x) for x in keys(Pkg.project().dependencies) if !(x in EXCLUDE_PACKAGES)]
 
 @info "Creating system image"
-try
-  create_sysimage(
-    [
-      :ArgParse,
-      :Distributed,
-      :Flux,
-      :CUDA,
-      :ImageMagick,
-      :Images,
-      :Interpolations,
-      :JLD2,
-      :LinearAlgebra,
-      :MosaicViews,
-      :OffsetArrays,
-      :Parameters,
-      :Printf,
-      :ProgressMeter,
-      :Random,
-      :Statistics,
-      :StatsBase,
-      :Test,
-      :TestImages,
-      :Revise,
-      :JuliaFormatter,
-      #:Hair,
-    ],
-    sysimage_path = "custom1.6.so",
-  )
-catch e
-  @error e
-finally
-  cd(curdir)
-end
+@info "================================================================================"
+create_sysimage(
+  symbols,
+  sysimage_path = args.output,
+)
