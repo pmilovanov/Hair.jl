@@ -1,11 +1,27 @@
 using Hair
 using NNlib
+using ArgParse
+
+function parse_args()
+  s = ArgParseSettings()
+  @add_arg_table s begin
+    "--data"
+    arg_type=String
+    required=true
+
+    "--modelsavedir"
+    arg_type=String
+    required=true
+    
+  end
+  parse_args(ARGS, s)
+end
 
 
-
+function maybe_get_data(datapath::String)
 
 if abspath(PROGRAM_FILE) == @__FILE__
-
+  
   model = Hair.Models.simple(
     Hair.Models.SimpleArgs(
       blocksizes = [5, 5, 5, 5, 5],

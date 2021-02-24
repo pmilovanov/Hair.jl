@@ -1,5 +1,6 @@
 module Hair
 
+include("gcs.jl")
 include("util.jl")
 include("channels.jl")
 
