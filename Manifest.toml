@@ -1146,6 +1146,12 @@ git-tree-sha1 = "ee010d8f103468309b8afac4abb9be2e18ff1182"
 uuid = "992d4aef-0814-514b-bc4d-f2e9a6c4116f"
 version = "0.3.2"
 
+[[SimpleMock]]
+deps = ["Cassette"]
+git-tree-sha1 = "0173cb8416512a56751055232d0b389d5c2d7175"
+uuid = "a896ed2c-15a5-4479-b61d-a0e88e2a1d25"
+version = "1.2.0"
+
 [[SimpleTraits]]
 deps = ["InteractiveUtils", "MacroTools"]
 git-tree-sha1 = "daf7aec3fe3acb2131388f93a4c409b8c7f62226"

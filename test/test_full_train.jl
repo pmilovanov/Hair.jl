@@ -20,8 +20,8 @@ M = Hair.Models
   #model = H.Models.build_model_simple([2, 2, 2, 2])
   model = M.simple(M.SimpleArgs())
 
-#  Profile.init(n=20000000)
-  
+  #  Profile.init(n=20000000)
+
   model_dir = H.train(
     H.TrainArgs(
       img_dir = tdir,
@@ -31,7 +31,7 @@ M = Hair.Models
       only_save_model_if_better = false,
     ),
     model,
-  ) 
+  )
 
   # @info "Model dir: $(model_dir)"
 
@@ -52,5 +52,5 @@ M = Hair.Models
   # end
 
 
-#  Profile.print()
+  #  Profile.print()
 end

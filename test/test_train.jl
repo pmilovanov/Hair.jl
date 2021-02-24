@@ -3,6 +3,7 @@ using Hair, Hair.TestUtil, Hair.Models
 using Images
 using Flux
 import Zygote
+using SimpleMock
 
 H = Hair
 
@@ -56,24 +57,13 @@ end
 
 
 @testset "ML funcs CUDA" begin
-  # begin
-  #   z = rand(Float32, (512, 512, 3, 1)) |> gpu
-  #   m = H.build_model() |> gpu
-  #   z2 = m(z) |> cpu
-  #   @test !all(z2 .== 0)
-  # end
-
-  let z = rand(Float32, (128, 128, 3, 1))
-    m = H.Models.build_model_simple([2, 3, 3, 3])
-    z2 = m(z)
-    @test !all(z2 .== 0)
-  end
-
   let x = rand(Float32, 128, 128, 3, 1), y = rand(Float32, 128, 128, 1, 1)
-    m = H.Models.simple(H.Models.SimpleArgs(
-      blocksizes=[3,3,3,3,3],
-      kernelsizes=[(5,5), (5,5), (5,5), (5,5), (5,5)]
-    ))
+    m = H.Models.simple(
+      H.Models.SimpleArgs(
+        blocksizes = [3, 3, 3, 3, 3],
+        kernelsizes = [(5, 5), (5, 5), (5, 5), (5, 5), (5, 5)],
+      ),
+    )
     ŷ = m(x)
 
     checkok(x) = (!all(x .== 0) && all(x .!= NaN))

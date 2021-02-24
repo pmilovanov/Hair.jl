@@ -19,8 +19,7 @@ using Hair: GCSPath, @gs_str, cp, uri, gcscopy, untar
     patch = @patch run(c::Cmd) = run(`cp $(@__DIR__)/test.tar $(tdir)/`)
     apply(patch) do
       untar(gs"hairy/test.tar", tdir)
-      @test sort(readdir(tdir)) == ["1","2","3"]
+      @test sort(readdir(tdir)) == ["1", "2", "3"]
     end
-  end 
+  end
 end
-

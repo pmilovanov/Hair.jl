@@ -38,7 +38,7 @@ function build_model_simple(blocksizes::Vector{Int})
 end
 
 ################################################################################
-@with_kw struct SimpleArgs
+@with_kw struct SimpleArgs <: ModelArgs
   blocksizes::Vector{Int} = [2, 2, 2, 2, 2]
   kernelsizes::Vector{NTuple{2,Int}} = [(3, 3), (3, 3), (3, 3), (3, 3), (3, 3)]
   σ::Function = leakyrelu
@@ -46,7 +46,7 @@ end
 
 maxpool() = MaxPool((2, 2))
 
-function simple(a::SimpleArgs = SeluSimpleArgs())
+function simple(a::SimpleArgs = SimpleArgs())
 
   convs3 = Chain(# # DebugPrintSize("conv0"),
     conv_block(a.blocksizes[1], a.kernelsizes[1], 3 => 16, a.σ),
