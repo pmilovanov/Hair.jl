@@ -16,6 +16,13 @@ RUN julia -O2 -t8 --project=. -e "import Pkg; Pkg.precompile()"
 #RUN mkdir build
 COPY build /app/build/
 
-RUN julia -O2 -t8 build/sysimage.jl -o /sysimgs/custom.so
+RUN julia -i --project=. -O2 -t8 -e "using Flux"
+RUN julia --project=. -O2 -t8 build/sysimage.jl -o /sysimgs/custom.so
 
 COPY . /app/
+
+ENTRYPOINT ["/app/build/entrypoint.sh"]
+
+RUN julia -i -O2  --project=/app -J /sysimgs/custom.so -e "using Flux; using CUDA"
+
+RUN nvidia-smi

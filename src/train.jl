@@ -167,10 +167,12 @@ function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing}; kwargs
   model_dir = joinpath(args.savepath, Dates.format(Dates.now(), "yyyymmdd-HHMM"))
   logdir=joinpath(model_dir, "tb")
   if !isgcs(args.savepath)
-    logdir = mktempdir()
     isdir(args.savepath) || mkdir(args.savepath)
     isdir(model_dir) || mkdir(model_dir)
+  else
+    logdir = mktempdir()
   end
+  
   logger = TBLogger(logdir, tb_overwrite)
 
   opt = ADAM(args.lr)
@@ -212,7 +214,11 @@ function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing}; kwargs
       Models.savemodel(am, model_dir, i)
     end
     if isgcs(model_dir)
-      gcscopy("$(logdir)/*", GCSPath("$(model_dir)/tb/"))
+      if length(readdir(logdir)) > 0
+        gcscopy("$(logdir)/*", "$(model_dir)/tb/")
+      else
+        @warn "Nothing found in tensorboard dir $(logdir)"
+      end
     end
     
     with_logger(logger) do      
