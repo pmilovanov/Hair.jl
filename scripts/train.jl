@@ -2,7 +2,7 @@ using Hair
 using NNlib
 using ArgParse
 
-function parse_args()
+function flags()
   s = ArgParseSettings()
   @add_arg_table s begin
     "--data"
@@ -20,7 +20,7 @@ end
 
 if abspath(PROGRAM_FILE) == @__FILE__
 
-  args = parse_args()
+  args = flags()
   
   model = Hair.Models.simple(
     Hair.Models.SimpleArgs(

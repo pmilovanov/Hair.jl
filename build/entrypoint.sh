@@ -1,3 +1,4 @@
 #!/bin/bash
 
-julia -O2 --project=/app -J /sysimgs/custom.so "$@"
+#-J /sysimgs/custom.so
+julia -O2 --project=/app "$@"
