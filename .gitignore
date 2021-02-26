@@ -7,4 +7,5 @@ venv/*
 #*
 .#*
 /data/rijks/*
+build/artifacts/*
 .ipynb_checkpoints
