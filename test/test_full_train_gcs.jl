@@ -24,10 +24,10 @@ M = Hair.Models
 
   model_dir = H.train(
     H.TrainArgs(
-      img_dir = tdir,
+      img_dir = "gs://hairy/1k_256.tar",
       test_set_ratio = 0.5,
       epochs = 2,
-      savepath = savepath,
+      savepath = "gs://hairy/models/unittest/1",
       only_save_model_if_better = false,
     ),
     model,

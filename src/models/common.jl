@@ -1,21 +1,25 @@
 using Flux, CUDA
 using Flux: throttle, logitbinarycrossentropy
 
-import ..Upsample, ..SkipUnit
+import ..Upsample, ..SkipUnit, ..gcscopy, ..isgcs
 using Parameters: @with_kw
 import JSON2
+using Printf
+using BSON: @save
 
 abstract type ModelArgs end
 
-struct AnnotatedModel{M}
-  model::M
+mutable struct AnnotatedModel
+  model
   metadata::Dict
-  function AnnotatedModel(model::M, model_args) where {M}
-    d = Dict()
-    d[:model_args] = model_args
-    new{M}(model, d)
-  end
 end
+
+function AnnotatedModel(model, model_args::ModelArgs)
+  d = Dict()
+  d[:model_args] = model_args
+  AnnotatedModel(model, d)
+end
+
 
 (am::AnnotatedModel)(x::AbstractArray) = am.model(x)
 model(am::AnnotatedModel) = am.model
@@ -31,6 +35,27 @@ function savemeta(am::AnnotatedModel, filename::String)
     println(f)
   end
 end
+
+function savemodel(am::AnnotatedModel, dir::String, epoch_id::Int)
+  localdir = isgcs(dir) ? mktempdir() : dir
+  
+  modelfilename = joinpath(localdir, @sprintf("epoch_%03d.bson", epoch_id))
+  metafilename = joinpath(localdir, @sprintf("epoch_%03d.json", epoch_id))
+
+  model = AnnotatedModel(cpu(am.model), am.metadata)
+
+  @save modelfilename model
+  Models.savemeta(am, metafilename)
+  
+  @info "Saved model locally to $modelfilename"
+
+  if isgcs(dir)
+    gcscopy(modelfilename, joinpath(dir, ""))
+    gcscopy(metafilename, joinpath(dir, ""))
+    @info "Saved model on gcs to $(joinpath(dir, basename(modelfilename)))"
+  end
+end
+  
 
 function conv_block(
   nunits::Int,

@@ -58,8 +58,21 @@ end
 readdir_nomasks(dirpath::String) =
   [x for x in readdir(dirpath, join = true) if !contains(x, "-mask")]
 
+function maybe_download_data(path::String)
+  if !isgcs(path); return path; end
+
+  path = GCSPath(path)
+  tdir = mktempdir(cleanup=false)
+  @info "Downloading data and untarring to dir $(tdir)"
+  untar(path, tdir)
+  tdir
+end
+
 function prepare_data(args::TrainArgs, tracker = StatsTracker())
-  filenames = readdir_nomasks(args.img_dir)
+
+  img_dir = maybe_download_data(args.img_dir)
+
+  filenames = readdir_nomasks(img_dir)
 
   train_fnames, test_fnames = splitobs(shuffleobs(filenames), at = (1 - args.test_set_ratio))
 
@@ -117,6 +130,15 @@ function testset_loss(loss, testset)
 end
 
 
+# function savemodel(model, am::Models.AnnotatedModel)
+# modelfilename = joinpath(model_dir, @sprintf("epoch_%03d.bson", i))
+#       metafilename = joinpath(model_dir, @sprintf("epoch_%03d.json", i))
+#       model = cpu(m)
+#       @save modelfilename model
+#       Models.savemeta(am, metafilename)
+#                    @info "Saved model to $modelfilename"
+#                    end
+
 bce_loss(model) = (x, y) -> sum(Flux.Losses.binarycrossentropy(model(x), y))
 bce_loss_tuple(model) = xy -> bce_loss(model)(xy...)
 
@@ -135,20 +157,22 @@ function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing}; kwargs
     if am == nothing
       throw(ArgumentError("model must not be nothing if args.previous_saved_model is not set"))
     end
-    m = Models.model(am) |> gpu
   else
     @info "Loading previous model"
     Core.eval(Main, :(import NNlib))
     @load args.previous_saved_model model
-    m = model |> gpu
   end
-
+  am.model = gpu(am.model)
 
   model_dir = joinpath(args.savepath, Dates.format(Dates.now(), "yyyymmdd-HHMM"))
-  isdir(args.savepath) || mkdir(args.savepath)
-  isdir(model_dir) || mkdir(model_dir)
-
   logdir=joinpath(model_dir, "tb")
+  if !isgcs(args.savepath)
+    isdir(args.savepath) || mkdir(args.savepath)
+    isdir(model_dir) || mkdir(model_dir)
+  else
+    logdir = mktempdir()
+  end
+  
   logger = TBLogger(logdir, tb_overwrite)
 
   opt = ADAM(args.lr)
@@ -176,23 +200,25 @@ function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing}; kwargs
       lasttime[] = time_ns()
     end
     
-    Flux.train!(bce_loss(m), params(m), trainset, opt, cb = iteration_callback)
+    Flux.train!(bce_loss(am.model), params(am.model), trainset, opt, cb = iteration_callback)
 
-    p, r, f1 = prf1(m, testset)
+    p, r, f1 = prf1(am.model, testset)
     Models.setmeta!(am, :metrics, Dict(:p => p, :r => r, :f1 => f1))
     @info @sprintf(" PRF1 TEST: %0.4f %0.4f %0.4f", p, r, f1)
     
     trainset = reset(trainset)
-    trp, trr, trf1 = prf1(m, trainset)
+    trp, trr, trf1 = prf1(am.model, trainset)
     @info @sprintf("PRF1 TRAIN: %0.4f %0.4f %0.4f", trp, trr, trf1)
 
     if args.only_save_model_if_better == false || f1 > f1_old
-      modelfilename = joinpath(model_dir, @sprintf("epoch_%03d.bson", i))
-      metafilename = joinpath(model_dir, @sprintf("epoch_%03d.json", i))
-      model = cpu(m)
-      @save modelfilename model
-      Models.savemeta(am, metafilename)
-      @info "Saved model to $modelfilename"
+      Models.savemodel(am, model_dir, i)
+    end
+    if isgcs(model_dir)
+      if length(readdir(logdir)) > 0
+        gcscopy("$(logdir)/*", "$(model_dir)/tb/")
+      else
+        @warn "Nothing found in tensorboard dir $(logdir)"
+      end
     end
     
     with_logger(logger) do      

@@ -1,8 +1,11 @@
 .idea/*
 *.pyi
+*.dat
+*.mem
 venv/*
 /data/db/*
 #*
 .#*
 /data/rijks/*
+build/artifacts/*
 .ipynb_checkpoints
