@@ -7,11 +7,11 @@ export REGION=us-central1
 export JOB_NAME=hair
 export JOB_ID=${JOB_NAME}_$(date +%Y%m%d_%H%M%S)
 
-#MACHINE_TYPE=n1-standard-8
-MACHINE_TYPE=standard_p100
+MACHINE_TYPE=n1-standard-16
+#MACHINE_TYPE=standard_p100
 
-#GPU_COUNT=1
-#GPU_TYPE=NVIDIA_TESLA_K80
+GPU_COUNT=1
+GPU_TYPE=NVIDIA_TESLA_P100
 
 DATA=gs://hairy/full256_0121.tar
 MODELSAVEDIR=gs://hairy/models/leakyrelu1_55555_p100
@@ -25,6 +25,7 @@ gcloud ai-platform jobs submit training "$JOB_ID" \
 	   --master-image-uri="$IMAGE_URI" \
 	   --scale-tier=CUSTOM \
  	   --master-machine-type=$MACHINE_TYPE \
+  	   --master-accelerator=count=${GPU_COUNT},type=${GPU_TYPE} \
 	   -- \
 	   scripts/train.jl \
 	   --data="$DATA" \

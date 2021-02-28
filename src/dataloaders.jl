@@ -38,10 +38,10 @@ struct GPUBufDataLoader
   inner::Any # iterable
 
   bufsize::Int
-  chan::TrackingChannel
+  chan::Channel
 
   function GPUBufDataLoader(inner_loader, bufsize::Int; id = "gpudl", statstracker = StatsTracker())
-    chan = TrackingChannel(id, Channel(bufsize), statstracker)
+    chan = Channel(bufsize)
     this = new(inner_loader, bufsize, chan)
     @spawnlog this.chan for data in this.inner
       put!(this.chan, gpu(data))
@@ -84,13 +84,13 @@ struct ImageAndMaskLoader
   imgsize::Tuple{Int,Int}
   imgnumchannels::Int
 
-  c_blobs::TrackingChannel #{Array{UInt8,1}}
-  c_imgs::TrackingChannel #{Array{FilenameImageMaskTuple,1}}
+  c_blobs::Channel #{Array{UInt8,1}}
+  c_imgs::Channel #{Array{FilenameImageMaskTuple,1}}
 
   function ImageAndMaskLoader(
     filenames::AbstractArray{String,1};
     batchsize::Int = 32,
-    bufsize::Int = 256,
+    bufsize::Int = 64,
     shuffle::Bool = true,
     id = "imgloader",
     statstracker = StatsTracker(),
@@ -110,8 +110,8 @@ struct ImageAndMaskLoader
       shuffle,
       size(sampleimg),
       3,
-      TrackingChannel("$(id)_c_blobs", Channel(bufsize * 2), statstracker),
-      TrackingChannel("$(id)_c_imgs", Channel(bufsize), statstracker),
+      Channel(bufsize),
+      Channel(bufsize)
     )
     @spawnlog this.c_blobs read_images_masks(this.c_blobs, filenames = filenames)
     @spawnlog this.c_imgs load_images_masks(this.c_blobs, this.c_imgs)
@@ -132,7 +132,7 @@ function Base.iterate(d::ImageAndMaskLoader, i = 0)
       (fname, img, mask) = take!(d.c_imgs)
       # @show typeof(mask)
       # @show eltype(mask)
-      X[:, :, :, j] = Float32.(permutedims(channelview(img), [2, 3, 1]))
+      X[:, :, :, j] = permuteddimsview(channelview(img), [2, 3, 1])
       Y[:, :, 1, j] = Float32.(mask .> 0.9)
     catch e
       if isopen(d.c_imgs)
@@ -159,3 +159,59 @@ function imgtoarray(img::Image, side::Int)
 end
 
 arraytoimg(arr::AbstractArray{T,3}) where {T} = colorview(RGB, permuteddimsview(arr, (3, 1, 2)))
+
+################################################################################
+
+mutable struct SyncIMLoader
+  filenames::AbstractArray{String,1}
+  batchsize::Int
+  shuffle::Bool
+  imgsize::Tuple{Int,Int}
+  imgnumchannels::Int
+
+  function SyncIMLoader(
+    filenames::AbstractArray{String,1};
+    batchsize::Int = 32,
+    shuffle::Bool = true
+  )
+    @assert length([x for x in filenames if contains(x, "-mask")]) == 0
+
+    sampleimg = load(filenames[1])
+
+    if shuffle
+      Random.shuffle!(filenames)
+    end
+
+    return new(
+      filenames,
+      batchsize,
+      shuffle,
+      size(sampleimg),
+      3
+    )
+  end
+end
+
+reset(d::SyncIMLoader) =
+  SyncIMLoader(d.filenames; batchsize = d.batchsize, shuffle = d.shuffle)
+
+function Base.iterate(d::SyncIMLoader, i = 1)
+  X = zeros(Float32, d.imgsize..., d.imgnumchannels, d.batchsize)
+  Y = zeros(Float32, d.imgsize..., 1, d.batchsize)
+
+  if i > length(d); return nothing; end
+  
+  for j = 1:d.batchsize
+      img = convert.(RGB{Float32}, load(d.filenames[j+i-1]))
+      mask = convert.(Gray{Float32}, load(maskfname(d.filenames[j+i-1])))
+      
+      # @show typeof(mask)
+      # @show eltype(mask)
+      X[:, :, :, j] = permuteddimsview(channelview(img), [2, 3, 1])
+      Y[:, :, 1, j] = Float32.(mask .> 0.9)
+  end
+
+  return ((X, Y), i + 1)
+end
+
+Base.length(d::SyncIMLoader) = length(d.filenames) ÷ d.batchsize
