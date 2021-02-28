@@ -12,7 +12,14 @@ function flags()
     "--modelsavedir"
     arg_type=String
     required=true
-    
+
+    "--batch_size"
+    arg_type=Int
+    default=16
+
+    "--epochs"
+    arg_type=Int
+    default=10
   end
   parse_args(ARGS, s)
 end
@@ -32,7 +39,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
 
   Hair.train(
     Hair.TrainArgs(
-      test_set_ratio = 0.1,
+      test_set_ratio = 0.05,
       #img_dir = expanduser("~/data/hair/hairy/exp/full128_0120"),
       #img_dir = expanduser("~/data/hair/hairy/exp/full256_0121"),
       #img_dir = expanduser("/home/pmilovanov/data/hair/hairy/exp/1k_256"),
@@ -46,8 +53,8 @@ if abspath(PROGRAM_FILE) == @__FILE__
       savepath = expanduser(args["modelsavedir"]),
       #savepath = expanduser("~/data/hair/models/leakyrelu_55_77_256/"),
       #   previous_saved_model = "/home/pmilovanov/data/hair/models/5555/20210123-1314/epoch_004.bson"  ,
-      batch_size = 16,
-      epochs = 1000,
+      batch_size = args["batch_size"],
+      epochs = args["epochs"],
     ),
     model,
   )

@@ -18,11 +18,11 @@ H = Hair
 end
 
 
-@testset "ImageAndMaskLoader" begin
+@testset "AsyncSegmentationDataLoader" begin
   dirname = H.TestUtil.write_dummy_images_masks(16, 128)
 
   filenames = [f for f in readdir(dirname, join = true) if !contains(f, "-mask")]
-  loader = H.ImageAndMaskLoader(filenames, batchsize = 5, bufsize = 10, shuffle = true)
+  loader = H.AsyncSegmentationDataLoader(filenames, batchsize = 5, bufsize = 10, shuffle = true)
 
   n = 0
   for (x, y) in loader
@@ -38,12 +38,12 @@ end
 end
 
 
-@testset "ImageAndMaskLoader 2" begin
+@testset "AsyncSegmentationDataLoader 2" begin
   dirname = H.TestUtil.write_dummy_images_masks(200, 64)
 
   filenames = [f for f in readdir(dirname, join = true) if !contains(f, "-mask")]
   train_fnames, test_fnames = splitobs(shuffleobs(filenames), 0.8)
-  loader = H.ImageAndMaskLoader(train_fnames, batchsize = 30, bufsize = 10, shuffle = true)
+  loader = H.AsyncSegmentationDataLoader(train_fnames, batchsize = 30, bufsize = 10, shuffle = true)
 
   for i = 1:2
     @test length(loader) == 5

@@ -1,6 +1,10 @@
 using ImageMagick
 
 
+function maskfname(fname::AbstractString, mask_suffix::AbstractString="-mask")
+    noextname, ext = splitext(fname)
+    joinpath(noextname * mask_suffix * ext)
+end
 
 """
 Read images and corresponding masks as binary blobs from a dir to a channel.
@@ -18,10 +22,8 @@ function read_images_masks(
     filenames = [x for x in readdir(path) if !contains(x, mask_suffix)]
   end
   for f in filenames
-    noextname, ext = splitext(f)
-    maskfname = joinpath(path, noextname * mask_suffix * ext)
     fname = joinpath(path, f)
-    put!(out, (f, read(fname), read(maskfname)))
+    put!(out, (f, read(fname), read(maskfname(fname))))
   end
 end
 
@@ -41,6 +43,6 @@ Schedules actual decoding on separate threads but waits synchronously until all 
 """
 function load_images_masks(input::AbstractChannel, output::AbstractChannel)
   @sync for (fname, img, mask) in input
-    @spawn put!(output, (fname, RGB{N0f8}.(readblob(img)), Gray{N0f8}.(readblob(mask))))
+    @spawn put!(output, (fname, RGB{Float32}.(readblob(img)), Gray{Float32}.(readblob(mask))))
   end
 end

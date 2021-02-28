@@ -3,7 +3,7 @@ using Hair, Hair.TestUtil
 using Images, Flux
 using BSON
 
-using Traceur
+#using Traceur
 #using Profile
 
 H = Hair
@@ -33,23 +33,23 @@ M = Hair.Models
     model,
   )
 
-  # @info "Model dir: $(model_dir)"
+  @info "Model dir: $(model_dir)"
 
-  # for p in ["epoch_001.bson", "epoch_002.bson"]
-  #   fname = joinpath(model_dir, p)
-  #   @test isfile(fname)
-  #   @test stat(fname).size > 1000
-  # end
+  for p in ["epoch_001.bson", "epoch_002.bson"]
+    fname = joinpath(model_dir, p)
+    @test isfile(fname)
+    @test stat(fname).size > 1000
+  end
 
-  # BSON.@load joinpath(model_dir, "epoch_002.bson") model
-  # model = model |> gpu
+  BSON.@load joinpath(model_dir, "epoch_002.bson") model
+  model = model |> gpu
 
-  # dataset = H.ImageAndMaskLoader(H.readdir_nomasks(tdir), batchsize = 4, bufsize = 10)
-  # for (x, y) in dataset
-  #   ŷ = model(gpu(x))
-  #   @test size(ŷ) == (256, 256, 1, 4)
-  #   break
-  # end
+  dataset = H.SegmentationDataLoader(H.readdir_nomasks(tdir), batchsize = 4) |> H.GPUDataLoader
+  for (x, y) in dataset
+    ŷ = model(gpu(x))
+    @test size(ŷ) == (256, 256, 1, 4)
+    break
+  end
 
 
   #  Profile.print()

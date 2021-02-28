@@ -76,47 +76,16 @@ function prepare_data(args::TrainArgs, tracker = StatsTracker())
 
   train_fnames, test_fnames = splitobs(shuffleobs(filenames), at = (1 - args.test_set_ratio))
 
-  # trainset = GPUBufDataLoader(
-  #   ImageAndMaskLoader(
-  #     train_fnames;
-  #     batchsize = args.batch_size,
-  #     bufsize = args.batch_size * 128,
-  #     id = "imgloader_train",
-  #     statstracker = tracker,
-  #   ),
-  #   2,
-  #   id = "gpudl_train",
-  #   statstracker = tracker,
-  # )
-  # testset = GPUBufDataLoader(
-  #   ImageAndMaskLoader(
-  #     test_fnames;
-  #     batchsize = args.batch_size,
-  #     bufsize = args.batch_size * 8,
-  #     id = "imgloader_test",
-  #     statstracker = tracker,
-  #   ),
-  #   2,
-  #   id = "gpudl_test",
-  #   statstracker = tracker,
-  # )
-
   trainset =
-    ImageAndMaskLoader(
+    SegmentationDataLoader(
       train_fnames;
-      batchsize = args.batch_size,
-      bufsize = args.batch_size * 3,
-      id = "imgloader_train",
-      statstracker = tracker,
+      batchsize = args.batch_size
     ) |> GPUDataLoader
 
   testset =
-    ImageAndMaskLoader(
+    SegmentationDataLoader(
       test_fnames;
-      batchsize = args.batch_size,
-      bufsize = args.batch_size * 3,
-      id = "imgloader_test",
-      statstracker = tracker,
+      batchsize = args.batch_size
     ) |> GPUDataLoader
 
   trainset, testset

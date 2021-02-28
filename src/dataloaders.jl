@@ -12,7 +12,7 @@ struct GPUDataLoader
   inner::Any # iterable
 end
 
-function Base.iterate(d::GPUDataLoader, i = 0)
+function Base.iterate(d::GPUDataLoader, i=1)
   it = Base.iterate(d.inner, i)
   if it == nothing
     return nothing
@@ -76,7 +76,7 @@ end
 FilenameImageMaskTuple{P,Q} = Tuple{String,Array{P,2},Array{Q,2}} where {P,Q}
 
 
-struct ImageAndMaskLoader
+struct AsyncSegmentationDataLoader
   filenames::AbstractArray{String,1}
   batchsize::Int
   bufsize::Int
@@ -87,7 +87,7 @@ struct ImageAndMaskLoader
   c_blobs::TrackingChannel #{Array{UInt8,1}}
   c_imgs::TrackingChannel #{Array{FilenameImageMaskTuple,1}}
 
-  function ImageAndMaskLoader(
+  function AsyncSegmentationDataLoader(
     filenames::AbstractArray{String,1};
     batchsize::Int = 32,
     bufsize::Int = 256,
@@ -120,10 +120,10 @@ struct ImageAndMaskLoader
   end
 end
 
-reset(d::ImageAndMaskLoader) =
-  ImageAndMaskLoader(d.filenames; batchsize = d.batchsize, bufsize = d.bufsize, shuffle = d.shuffle)
+reset(d::AsyncSegmentationDataLoader) =
+  AsyncSegmentationDataLoader(d.filenames; batchsize = d.batchsize, bufsize = d.bufsize, shuffle = d.shuffle)
 
-function Base.iterate(d::ImageAndMaskLoader, i = 0)
+function Base.iterate(d::AsyncSegmentationDataLoader, i = 0)
   X = zeros(Float32, d.imgsize..., d.imgnumchannels, d.batchsize)
   Y = zeros(Float32, d.imgsize..., 1, d.batchsize)
 
@@ -145,9 +145,9 @@ function Base.iterate(d::ImageAndMaskLoader, i = 0)
   return ((X, Y), i + 1)
 end
 
-Base.length(d::ImageAndMaskLoader) = length(d.filenames) ÷ d.batchsize
+Base.length(d::AsyncSegmentationDataLoader) = length(d.filenames) ÷ d.batchsize
 
-
+################################################################################
 
 imgtoarray(img::Image) = Float32.(Flux.unsqueeze(permutedims(channelview(img), [2, 3, 1]), 4))
 
@@ -159,3 +159,59 @@ function imgtoarray(img::Image, side::Int)
 end
 
 arraytoimg(arr::AbstractArray{T,3}) where {T} = colorview(RGB, permuteddimsview(arr, (3, 1, 2)))
+
+################################################################################
+
+mutable struct SegmentationDataLoader
+  filenames::AbstractArray{String,1}
+  batchsize::Int
+  shuffle::Bool
+  imgsize::Tuple{Int,Int}
+  imgnumchannels::Int
+
+  function SegmentationDataLoader(
+    filenames::AbstractArray{String,1};
+    batchsize::Int = 32,
+    shuffle::Bool = true
+  )
+    @assert length([x for x in filenames if contains(x, "-mask")]) == 0
+
+    sampleimg = load(filenames[1])
+
+    if shuffle
+      Random.shuffle!(filenames)
+    end
+
+    return new(
+      filenames,
+      batchsize,
+      shuffle,
+      size(sampleimg),
+      3
+    )
+  end
+end
+
+reset(d::SegmentationDataLoader) =
+  SegmentationDataLoader(d.filenames; batchsize = d.batchsize, shuffle = d.shuffle)
+
+function Base.iterate(d::SegmentationDataLoader, i = 1)
+  X = zeros(Float32, d.imgsize..., d.imgnumchannels, d.batchsize)
+  Y = zeros(Float32, d.imgsize..., 1, d.batchsize)
+
+  if i > length(d); return nothing; end
+  
+  for j = 1:d.batchsize
+      img = convert.(RGB{Float32}, load(d.filenames[j+i-1]))
+      mask = convert.(Gray{Float32}, load(maskfname(d.filenames[j+i-1])))
+      
+      # @show typeof(mask)
+      # @show eltype(mask)
+      X[:, :, :, j] = permuteddimsview(channelview(img), [2, 3, 1])
+      Y[:, :, 1, j] = Float32.(mask .> 0.9)
+  end
+
+  return ((X, Y), i + 1)
+end
+
+Base.length(d::SegmentationDataLoader) = length(d.filenames) ÷ d.batchsize
