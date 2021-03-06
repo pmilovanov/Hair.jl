@@ -42,7 +42,7 @@ M = Hair.Models
   end
 
   BSON.@load joinpath(model_dir, "epoch_002.bson") model
-  model = model |> gpu
+  model = model.model |> gpu
 
   dataset = H.SegmentationDataLoader(H.readdir_nomasks(tdir), batchsize = 4) |> H.GPUDataLoader
   for (x, y) in dataset

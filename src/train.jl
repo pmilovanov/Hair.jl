@@ -179,12 +179,12 @@ function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing}; kwargs
     
     Flux.train!(bce_loss(am.model), params(am.model), trainset, opt, cb = iteration_callback)
 
-    p, r, f1, lossval = prf1(am.model, testset)
+    p, r, f1, lossval = prf1(am.model, testset, lossfn=Flux.Losses.binarycrossentropy)
     Models.setmeta!(am, :metrics, Dict(:p => p, :r => r, :f1 => f1, :loss => lossval))
     @info @sprintf(" PRF1L TEST: %0.4f %0.4f %0.4f %0.4f", p, r, f1, lossval)
     
     trainset = reset(trainset)
-    trp, trr, trf1, tlossval = prf1(am.model, trainset_subsample)
+    trp, trr, trf1, tlossval = prf1(am.model, trainset_subsample, lossfn=Flux.Losses.binarycrossentropy)
     @info @sprintf("PRF1L TRAIN: %0.4f %0.4f %0.4f %0.4f", trp, trr, trf1, tlossval)
 
     if args.only_save_model_if_better == false || f1 > f1_old
@@ -209,7 +209,7 @@ function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing}; kwargs
     #   show(stats[k])
     # end
 
-    trainset, testset, trainset_sample = reset(trainset), reset(testset), reset(trainset_sample)
+    trainset, testset, trainset_subsample = reset(trainset), reset(testset), reset(trainset_subsample)
   end
 
   return model_dir
