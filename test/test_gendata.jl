@@ -34,17 +34,6 @@ testdata(datasize::Int) =
   si(x, y) = img[x:x+2, y:y+2]
   @test si(3, 3) == [15 21 27; 16 22 28; 17 23 29]
 
-
-  function compare_arr(a, b)
-    for (ae, be) in zip(a, b)
-      show(stdout, "text/plain", ae)
-      print("\n")
-      show(stdout, "text/plain", be)
-      print("\n")
-      println("---")
-    end
-  end
-
   @test H.sample_image(img, H.GridStrategy(side = 3, overlap = 1)) ==
         [si(1, 1), si(3, 1), si(1, 3), si(3, 3), si(4, 1), si(4, 3), si(1, 4), si(3, 4), si(4, 4)]
 

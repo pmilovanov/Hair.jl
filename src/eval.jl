@@ -120,19 +120,20 @@ end
 GrayImage = Matrix{Gray{Float32}}
 function eval_on_images(images::Vector{NTuple{2,GrayImage}})
 
-  accum = values(BinarySegmentationMetrics(zeros(Int, 10)))
+  accum = totuple(BinarySegmentationMetrics())
 
   for (ŷ, y) in images
-    accum = accum .+ values(binsegmetrics(channelview(ŷ), channelview(y)))
+    accum = accum .+ totuple(binsegmetrics(channelview(ŷ), channelview(y)))
   end
 
-  a = BinarySegmentationMetrics(accum)
+  a = BinarySegmentationMetrics(accum...)
 
   p = a.tp / (a.tp + a.fp)
   r = a.tp / (a.tp + a.fn)
   f1 = 2 * p * r / (p + r)
+  lossv = a.loss / length(images)
 
-  BinarySegmentationMetrics((p, r, f1, a.ap_ŷ, a.ap_y, a.tp, a.tn, a.fp, a.fn, a.npixels))
+  BinarySegmentationMetrics(p, r, f1, a.ap_ŷ, a.ap_y, a.tp, a.tn, a.fp, a.fn, a.npixels, lossv)
 end
 
 function eval_on_image_dir(model, image_dir::String)
@@ -168,7 +169,7 @@ function infer_compare_w_gt(model, input_path::String, gt_path::String; resize_r
     ŷr = imresize(ŷr, ratio = resize_ratio)
     yr = imresize(yr, ratio = resize_ratio)
   end
-  precision, recall, f1 = prf1(channelview(ŷr), channelview(yr))
+  precision, recall, f1, lossval = prf1(channelview(ŷr), channelview(yr))
 
   oimg = deepcopy(img)
   place_overlay!(oimg, ŷ, channel = 1)
@@ -179,7 +180,7 @@ function infer_compare_w_gt(model, input_path::String, gt_path::String; resize_r
     ŷ,
     y,
     oimg,
-    Dict(:precision => precision, :recall => recall, :f1 => f1),
+    Dict(:precision => precision, :recall => recall, :f1 => f1, :loss => lossval),
     resize_ratio,
   )
 end

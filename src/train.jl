@@ -1,17 +1,18 @@
-using Base.Iterators: partition
-using Flux.Data: DataLoader
-using Parameters: @with_kw
-using Flux, CUDA
-using Flux: throttle, logitbinarycrossentropy
-using Statistics
-using Printf
-using MLDataPattern: splitobs, shuffleobs
-using ProgressMeter
-using BSON: @load, @save
 import Dates
-using NNlib
 import JSON3
+using BSON: @load, @save
+using Base.Iterators: partition
+using Flux, CUDA
+using Flux.Data: DataLoader
+using Flux: throttle, logitbinarycrossentropy
 using Logging
+using MLDataPattern: splitobs, shuffleobs
+using NNlib
+using Parameters: @with_kw
+using Printf
+using ProgressMeter
+using Statistics
+using StatsBase
 using TensorBoardLogger
 
 using .Models
@@ -75,10 +76,17 @@ function prepare_data(args::TrainArgs, tracker = StatsTracker())
   filenames = readdir_nomasks(img_dir)
 
   train_fnames, test_fnames = splitobs(shuffleobs(filenames), at = (1 - args.test_set_ratio))
+  train_fnames_subsample = sample(train_fnames, length(test_fnames), replace=false)
 
   trainset =
     SegmentationDataLoader(
       train_fnames;
+      batchsize = args.batch_size
+    ) |> GPUDataLoader
+
+  trainset_subsample =
+    SegmentationDataLoader(
+      train_fnames_subsample;
       batchsize = args.batch_size
     ) |> GPUDataLoader
 
@@ -88,7 +96,7 @@ function prepare_data(args::TrainArgs, tracker = StatsTracker())
       batchsize = args.batch_size
     ) |> GPUDataLoader
 
-  trainset, testset
+  trainset, testset, trainset_subsample
 end
 
 
@@ -118,7 +126,7 @@ function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing}; kwargs
   tracker = nothing
 
   @info "Setting up data"
-  trainset, testset = prepare_data(args, tracker)
+  trainset, testset, trainset_subsample = prepare_data(args, tracker)
 
   Models.setmeta!(am, :train_args, args)
 
@@ -171,13 +179,13 @@ function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing}; kwargs
     
     Flux.train!(bce_loss(am.model), params(am.model), trainset, opt, cb = iteration_callback)
 
-    p, r, f1 = prf1(am.model, testset)
-    Models.setmeta!(am, :metrics, Dict(:p => p, :r => r, :f1 => f1))
-    @info @sprintf(" PRF1 TEST: %0.4f %0.4f %0.4f", p, r, f1)
+    p, r, f1, lossval = prf1(am.model, testset)
+    Models.setmeta!(am, :metrics, Dict(:p => p, :r => r, :f1 => f1, :loss => lossval))
+    @info @sprintf(" PRF1L TEST: %0.4f %0.4f %0.4f %0.4f", p, r, f1, lossval)
     
     trainset = reset(trainset)
-    trp, trr, trf1 = prf1(am.model, trainset)
-    @info @sprintf("PRF1 TRAIN: %0.4f %0.4f %0.4f", trp, trr, trf1)
+    trp, trr, trf1, tlossval = prf1(am.model, trainset_subsample)
+    @info @sprintf("PRF1L TRAIN: %0.4f %0.4f %0.4f %0.4f", trp, trr, trf1, tlossval)
 
     if args.only_save_model_if_better == false || f1 > f1_old
       Models.savemodel(am, model_dir, i)
@@ -191,8 +199,8 @@ function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing}; kwargs
     end
     
     with_logger(logger) do      
-      @info "test" precision=p recall=r f1=f1
-      @info "train" precision=trp recall=trr f1=trf1
+      @info "test" precision=p recall=r f1=f1 loss=lossval
+      @info "train" precision=trp recall=trr f1=trf1 loss=tlossval
     end
 
     # stats = snapshot(tracker)
@@ -201,7 +209,7 @@ function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing}; kwargs
     #   show(stats[k])
     # end
 
-    trainset, testset = reset(trainset), reset(testset)
+    trainset, testset, trainset_sample = reset(trainset), reset(testset), reset(trainset_sample)
   end
 
   return model_dir

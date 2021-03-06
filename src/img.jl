@@ -67,9 +67,6 @@ end
 
 imneg(img::Image{T}) where {T} = 1 .- img
 
-#image(img::Array{T,2}, component::Component) where {T} =
-#    max.(imneg(component.mask), imgslice(img, component.bbox))
-
 image(img::Image{T}, c::Component) where {T} = coloralpha.(imgslice(img, c.bbox), c.mask)
 
 compmosaic(img::Image{T}, components::Array{Component,1}; kwargs...) where {T} =

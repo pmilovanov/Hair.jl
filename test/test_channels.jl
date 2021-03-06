@@ -7,7 +7,6 @@ using Hair: @spawnlog
 H = Hair
 
 tracker = H.StatsTracker()
-@show tracker
 
 tch = H.TrackingChannel("ch1", Channel{Int}(100), tracker)
 

@@ -1,7 +1,7 @@
 using Flux
 using Flux.Data: DataLoader
 using Images
-
+using StatsBase
 
 ################################################################################
 # GPU data loader
@@ -132,7 +132,7 @@ function Base.iterate(d::AsyncSegmentationDataLoader, i = 0)
       (fname, img, mask) = take!(d.c_imgs)
       # @show typeof(mask)
       # @show eltype(mask)
-      X[:, :, :, j] = Float32.(permutedims(channelview(img), [2, 3, 1]))
+      X[:, :, :, j] = Float32.(PermutedDimsArray(channelview(img), [2, 3, 1]))
       Y[:, :, 1, j] = Float32.(mask .> 0.9)
     catch e
       if isopen(d.c_imgs)
@@ -149,7 +149,7 @@ Base.length(d::AsyncSegmentationDataLoader) = length(d.filenames) ÷ d.batchsize
 
 ################################################################################
 
-imgtoarray(img::Image) = Float32.(Flux.unsqueeze(permutedims(channelview(img), [2, 3, 1]), 4))
+imgtoarray(img::Image) = Float32.(Flux.unsqueeze(PermutedDimsArray(channelview(img), [2, 3, 1]), 4))
 
 function imgtoarray(img::Image, side::Int)
   if size(img) != (side, side)
@@ -158,7 +158,7 @@ function imgtoarray(img::Image, side::Int)
   imgtoarray(img)
 end
 
-arraytoimg(arr::AbstractArray{T,3}) where {T} = colorview(RGB, permuteddimsview(arr, (3, 1, 2)))
+arraytoimg(arr::AbstractArray{T,3}) where {T} = colorview(RGB, PermutedDimsArray(arr, (3, 1, 2)))
 
 ################################################################################
 
@@ -175,12 +175,9 @@ mutable struct SegmentationDataLoader
     shuffle::Bool = true
   )
     @assert length([x for x in filenames if contains(x, "-mask")]) == 0
-
+    shuffle && Random.shuffle!(filenames)
+    
     sampleimg = load(filenames[1])
-
-    if shuffle
-      Random.shuffle!(filenames)
-    end
 
     return new(
       filenames,
@@ -207,7 +204,7 @@ function Base.iterate(d::SegmentationDataLoader, i = 1)
       
       # @show typeof(mask)
       # @show eltype(mask)
-      X[:, :, :, j] = permuteddimsview(channelview(img), [2, 3, 1])
+      X[:, :, :, j] = PermutedDimsArray(channelview(img), [2, 3, 1])
       Y[:, :, 1, j] = Float32.(mask .> 0.9)
   end
 

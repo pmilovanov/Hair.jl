@@ -86,8 +86,5 @@ end
     for p in ps
       @test checkok(p)
     end
-
-    @info m(x)
-    #@info params(m)
   end
 end
