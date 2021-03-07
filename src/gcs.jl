@@ -9,7 +9,7 @@ struct GCSPath
   path::String
   function GCSPath(path::String)
     if isgcs(path)
-      path = path[length(GCS_PREFIX)+1:end]      
+      path = path[length(GCS_PREFIX)+1:end]
     end
     new(path)
   end
@@ -36,4 +36,11 @@ function untar(src::GCSPath, destdir::String)
   run(`tar xf $(bname)`)
   run(`rm $(bname)`)
   cd(curdir)
+end
+
+function downloadmemaybe(filename::String)
+  if !isgcs(filename); return filename; end
+  localfname = joinpath(mktempdir(), "model.bson")
+  gcscopy(filename, localfname)
+  localfname
 end

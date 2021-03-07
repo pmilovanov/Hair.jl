@@ -26,7 +26,7 @@ Mocking.activate()
       push!(cmds, cmd)
       run(`echo`)
     end
-    
+
     apply(p) do
       H.Models.savemodel(m, "gs://hairy/test", 5)
 

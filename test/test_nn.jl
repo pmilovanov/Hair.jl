@@ -56,8 +56,19 @@ Flux.@functor PlusLayer
     recall = 1.0 / 3.0
     f1 = 2 * precision * recall / (precision + recall)
 
-    @test H.binsegmetrics(ŷ, y) ==
-          H.BinarySegmentationMetrics(precision, recall, f1, ap_ŷ, ap_y, tp, tn, fp, fn, npixels, -1.0)
+    @test H.binsegmetrics(ŷ, y) == H.BinarySegmentationMetrics(
+      precision,
+      recall,
+      f1,
+      ap_ŷ,
+      ap_y,
+      tp,
+      tn,
+      fp,
+      fn,
+      npixels,
+      -1.0,
+    )
   end
 
 
@@ -95,8 +106,19 @@ Flux.@functor PlusLayer
     recall = 1.0 / 3.0
     f1 = 2 * precision * recall / (precision + recall)
 
-    @test H.eval_on_images(imgs) ==
-          H.BinarySegmentationMetrics(precision, recall, f1, ap_ŷ, ap_y, tp, tn, fp, fn, npixels, -1.0)
+    @test H.eval_on_images(imgs) == H.BinarySegmentationMetrics(
+      precision,
+      recall,
+      f1,
+      ap_ŷ,
+      ap_y,
+      tp,
+      tn,
+      fp,
+      fn,
+      npixels,
+      -1.0,
+    )
   end
 
 end

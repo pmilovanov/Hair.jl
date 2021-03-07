@@ -4,7 +4,8 @@ toml = Artifacts.find_artifacts_toml(pathof(CUDA))
 
 artifacts = Artifacts.load_artifacts_toml(toml)
 
-for artname in ["CUDA110", "CUDNN_CUDA110", "CUTENSOR_CUDA110", "CUDA111", "CUDNN_CUDA111", "CUTENSOR_CUDA111"]
+for artname in
+    ["CUDA110", "CUDNN_CUDA110", "CUTENSOR_CUDA110", "CUDA111", "CUDNN_CUDA111", "CUTENSOR_CUDA111"]
 
   a = artifacts[artname]
 
@@ -16,4 +17,3 @@ for artname in ["CUDA110", "CUDNN_CUDA110", "CUTENSOR_CUDA110", "CUDA111", "CUDN
   println("curl -L $(url) -o $(sha).tar.gz")
 
 end
-

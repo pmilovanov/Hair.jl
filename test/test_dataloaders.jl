@@ -5,7 +5,7 @@ using MLDataPattern
 H = Hair
 
 @testset "Dataloaders" begin
-  
+
   @testset "GPUDataLoader" begin
 
     X = rand(Float32, 256, 256, 3, 1000)
@@ -20,7 +20,10 @@ H = Hair
   end
 
 
-  @testset "Segmentation DataLoaders 1" for LoaderType in [H.AsyncSegmentationDataLoader, H.SegmentationDataLoader]
+  @testset "Segmentation DataLoaders 1" for LoaderType in [
+    H.AsyncSegmentationDataLoader,
+    H.SegmentationDataLoader,
+  ]
     dirname = H.TestUtil.write_dummy_images_masks(16, 128)
 
     filenames = [f for f in readdir(dirname, join = true) if !contains(f, "-mask")]
@@ -38,5 +41,5 @@ H = Hair
     end
     @test n == 3
   end
-  
+
 end;

@@ -34,8 +34,10 @@ function sample_image_w_coords(img::Image, s::GridStrategy)
   if s.cover_edges
     cover_x = ((step * (nfits_x - 1) + s.side) != size(img)[1])
     cover_y = ((step * (nfits_y - 1) + s.side) != size(img)[2])
-    cover_x && push!(candidates, [(size(img)[1] - s.side + 1, 1 + step * (i - 1)) for i = 1:nfits_y]...)
-    cover_y && push!(candidates, [(1 + step * (i - 1), size(img)[2] - s.side + 1) for i = 1:nfits_x]...)
+    cover_x &&
+      push!(candidates, [(size(img)[1] - s.side + 1, 1 + step * (i - 1)) for i = 1:nfits_y]...)
+    cover_y &&
+      push!(candidates, [(1 + step * (i - 1), size(img)[2] - s.side + 1) for i = 1:nfits_x]...)
     cover_x && cover_y && push!(candidates, (size(img)[1] - s.side + 1, size(img)[2] - s.side + 1))
   end
 
@@ -63,16 +65,22 @@ end
 
 
 iminvert(img::Image{C}) where {C<:Color} = convert(eltype(img), 1.0) .- img
-iminvert(img::Image{TC}) where {TC<:TransparentColor} = coloralpha.(iminvert(color.(img)), alpha.(img))
+iminvert(img::Image{TC}) where {TC<:TransparentColor} =
+  coloralpha.(iminvert(color.(img)), alpha.(img))
 
 
-function imblur(img::Image{TC}, σ::AbstractFloat, kernel_size::Int=9; pad::Bool= true) where TC<:Colorant
+function imblur(
+  img::Image{TC},
+  σ::AbstractFloat,
+  kernel_size::Int = 9;
+  pad::Bool = true,
+) where {TC<:Colorant}
   img = padarray(img, Fill(zero(TC), (kernel_size, kernel_size), (kernel_size, kernel_size)))
   k = centered(Kernel.gaussian([σ, σ], [kernel_size, kernel_size]))
   imfilter(img, k)
 end
 
-@with_kw struct RandomizedTransformParams{T<:AbstractFloat} 
+@with_kw struct RandomizedTransformParams{T<:AbstractFloat}
   scale::Tuple{T,T} = (0.25, 1)
   θ::Tuple{T,T} = (0, 2π)
   opacity::Tuple{T,T} = (0.3, 1)
@@ -86,13 +94,13 @@ end
   gradient_θ::Tuple{T,T} = (0, 2π)
 end
 
-function t_random(p::RandomizedTransformParams=RandomizedTransformParams{Float64}())
+function t_random(p::RandomizedTransformParams = RandomizedTransformParams{Float64}())
   randrange(rmin, rmax) = rand() * (rmax - rmin) + rmin
-  
+
   function transform(img::Image{TC}) where {TC<:TransparentColor}
     imgcolor, imgα = color.(img), alpha.(img)
     imgα = convert.(eltype(eltype(img)), imgα .* randrange(p.opacity...))
-    
+
     imgcolor = rand() < p.invert_prob ? iminvert(imgcolor) : imgcolor
     img = coloralpha.(imgcolor, imgα)
 

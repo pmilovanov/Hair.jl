@@ -119,14 +119,19 @@ struct BinarySegmentationMetrics
   loss::Float64
 end
 
-BinarySegmentationMetrics() = BinarySegmentationMetrics(zeros(Int, fieldcount(BinarySegmentationMetrics))...)
+BinarySegmentationMetrics() =
+  BinarySegmentationMetrics(zeros(Int, fieldcount(BinarySegmentationMetrics))...)
 function totuple(z::BinarySegmentationMetrics)
   fnames = fieldnames(BinarySegmentationMetrics)
-  [getfield(z,x) for x in fnames]
+  [getfield(z, x) for x in fnames]
 end
-                    
 
-function binsegmetrics(ŷ::AbstractArray{Bool,N}, y::AbstractArray{Bool,N}; lossfn::Union{Function, Nothing}=nothing) where {N}
+
+function binsegmetrics(
+  ŷ::AbstractArray{Bool,N},
+  y::AbstractArray{Bool,N};
+  lossfn::Union{Function,Nothing} = nothing,
+) where {N}
   @assert size(ŷ) == size(y)
   npixels = prod(size(y))
   ap_ŷ = count(ŷ)
@@ -142,7 +147,7 @@ function binsegmetrics(ŷ::AbstractArray{Bool,N}, y::AbstractArray{Bool,N}; los
   r = tp / (tp + fn)
   f1 = 2 * p * r / (p + r)
 
-  loss =  isnothing(lossfn) ? -1.0 : lossfn(ŷ, y)
+  loss = isnothing(lossfn) ? -1.0 : lossfn(ŷ, y)
 
   BinarySegmentationMetrics(p, r, f1, ap_ŷ, ap_y, tp, tn, fp, fn, npixels, loss)
 end
@@ -152,7 +157,7 @@ function binsegmetrics(
   ŷ::AbstractArray{T,N},
   y::AbstractArray{T,N},
   threshold::AbstractFloat = 0.1;
-  kwargs...
+  kwargs...,
 ) where {T<:AbstractFloat,N}
   ŷ = (ŷ .> threshold)
   y = (y .> threshold)
@@ -186,20 +191,20 @@ precision(model, testset) = mean([precision(model(x), y) for (x, y) in testset])
 recall(model, testset) = mean([recall(model(x), y) for (x, y) in testset])
 
 
-function prf1(model, testset; lossfn::Union{Function,Nothing}=nothing)
+function prf1(model, testset; lossfn::Union{Function,Nothing} = nothing)
   p, r, loss = 0.0, 0.0, 0.0
   n = 0
-  
+
   for (x, y) in testset
     ŷ = model(x)
-    metrics = binsegmetrics(ŷ, y, lossfn=lossfn)
+    metrics = binsegmetrics(ŷ, y, lossfn = lossfn)
 
     p += metrics.precision
     r += metrics.recall
     n += 1
     loss += metrics.loss
   end
-  p, r, loss = p/n, r/n, loss/n
+  p, r, loss = p / n, r / n, loss / n
   f1 = 2 * p * r / (p + r)
-  return (p=p, r=r, f1=f1, loss=loss)
+  return (p = p, r = r, f1 = f1, loss = loss)
 end

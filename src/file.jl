@@ -1,9 +1,9 @@
 using ImageMagick
 
 
-function maskfname(fname::AbstractString, mask_suffix::AbstractString="-mask")
-    noextname, ext = splitext(fname)
-    joinpath(noextname * mask_suffix * ext)
+function maskfname(fname::AbstractString, mask_suffix::AbstractString = "-mask")
+  noextname, ext = splitext(fname)
+  joinpath(noextname * mask_suffix * ext)
 end
 
 """

@@ -12,7 +12,7 @@ struct GPUDataLoader
   inner::Any # iterable
 end
 
-function Base.iterate(d::GPUDataLoader, i=1)
+function Base.iterate(d::GPUDataLoader, i = 1)
   it = Base.iterate(d.inner, i)
   if it == nothing
     return nothing
@@ -120,8 +120,12 @@ struct AsyncSegmentationDataLoader
   end
 end
 
-reset(d::AsyncSegmentationDataLoader) =
-  AsyncSegmentationDataLoader(d.filenames; batchsize = d.batchsize, bufsize = d.bufsize, shuffle = d.shuffle)
+reset(d::AsyncSegmentationDataLoader) = AsyncSegmentationDataLoader(
+  d.filenames;
+  batchsize = d.batchsize,
+  bufsize = d.bufsize,
+  shuffle = d.shuffle,
+)
 
 function Base.iterate(d::AsyncSegmentationDataLoader, i = 0)
   X = zeros(Float32, d.imgsize..., d.imgnumchannels, d.batchsize)
@@ -172,20 +176,14 @@ mutable struct SegmentationDataLoader
   function SegmentationDataLoader(
     filenames::AbstractArray{String,1};
     batchsize::Int = 32,
-    shuffle::Bool = true
+    shuffle::Bool = true,
   )
     @assert length([x for x in filenames if contains(x, "-mask")]) == 0
     shuffle && Random.shuffle!(filenames)
-    
+
     sampleimg = load(filenames[1])
 
-    return new(
-      filenames,
-      batchsize,
-      shuffle,
-      size(sampleimg),
-      3
-    )
+    return new(filenames, batchsize, shuffle, size(sampleimg), 3)
   end
 end
 
@@ -196,16 +194,18 @@ function Base.iterate(d::SegmentationDataLoader, i = 1)
   X = zeros(Float32, d.imgsize..., d.imgnumchannels, d.batchsize)
   Y = zeros(Float32, d.imgsize..., 1, d.batchsize)
 
-  if i > length(d); return nothing; end
-  
+  if i > length(d)
+    return nothing
+  end
+
   for j = 1:d.batchsize
-      img = convert.(RGB{Float32}, load(d.filenames[j+i-1]))
-      mask = convert.(Gray{Float32}, load(maskfname(d.filenames[j+i-1])))
-      
-      # @show typeof(mask)
-      # @show eltype(mask)
-      X[:, :, :, j] = PermutedDimsArray(channelview(img), [2, 3, 1])
-      Y[:, :, 1, j] = Float32.(mask .> 0.9)
+    img = convert.(RGB{Float32}, load(d.filenames[j+i-1]))
+    mask = convert.(Gray{Float32}, load(maskfname(d.filenames[j+i-1])))
+
+    # @show typeof(mask)
+    # @show eltype(mask)
+    X[:, :, :, j] = PermutedDimsArray(channelview(img), [2, 3, 1])
+    Y[:, :, 1, j] = Float32.(mask .> 0.9)
   end
 
   return ((X, Y), i + 1)

@@ -31,4 +31,4 @@ gcloud ai-platform jobs submit training "$JOB_ID" \
 	   --data="$DATA" \
 	   --modelsavedir="$MODELSAVEDIR" \
 	   --epochs=50 \
-	   --batch_size=64
+	   --batch_size=32

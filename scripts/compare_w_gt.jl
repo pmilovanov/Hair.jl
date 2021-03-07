@@ -22,7 +22,7 @@ imshow(rr.overlaid)
 rr = H.infer_compare_w_gt(
   gmodel,
   "$(gtdir)/Derain,_Andre_-_Port.jpg",
-  "$(gtdir)/Derain,_Andre_-_Port-mask.jpg"
+  "$(gtdir)/Derain,_Andre_-_Port-mask.jpg",
 )
 
 imshow(rr.overlaid)

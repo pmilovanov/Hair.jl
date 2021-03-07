@@ -6,20 +6,24 @@ function flags()
   s = ArgParseSettings()
   @add_arg_table s begin
     "--data"
-    arg_type=String
-    required=true
+    arg_type = String
+    required = true
 
     "--modelsavedir"
-    arg_type=String
-    required=true
+    arg_type = String
+    required = true
 
     "--batch_size"
-    arg_type=Int
-    default=16
+    arg_type = Int
+    default = 16
 
     "--epochs"
-    arg_type=Int
-    default=10
+    arg_type = Int
+    default = 10
+
+    "--previous_model"
+    arg_type = String
+    default = nothing
   end
   parse_args(ARGS, s)
 end
@@ -28,7 +32,7 @@ end
 if abspath(PROGRAM_FILE) == @__FILE__
 
   args = flags()
-  
+
   model = Hair.Models.simple(
     Hair.Models.SimpleArgs(
       blocksizes = [5, 5, 5, 5, 5],
@@ -52,7 +56,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
 
       savepath = expanduser(args["modelsavedir"]),
       #savepath = expanduser("~/data/hair/models/leakyrelu_55_77_256/"),
-      #   previous_saved_model = "/home/pmilovanov/data/hair/models/5555/20210123-1314/epoch_004.bson"  ,
+      previous_saved_model = args["previous_model"],
       batch_size = args["batch_size"],
       epochs = args["epochs"],
     ),

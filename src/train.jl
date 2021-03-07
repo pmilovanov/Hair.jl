@@ -128,8 +128,6 @@ function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing}; kwargs
   @info "Setting up data"
   trainset, testset, trainset_subsample = prepare_data(args, tracker)
 
-  Models.setmeta!(am, :train_args, args)
-
   if args.previous_saved_model == nothing
     if am == nothing
       throw(ArgumentError("model must not be nothing if args.previous_saved_model is not set"))
@@ -137,8 +135,11 @@ function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing}; kwargs
   else
     @info "Loading previous model"
     Core.eval(Main, :(import NNlib))
-    @load args.previous_saved_model model
+    @load downloadmemaybe(args.previous_saved_model) model
+    am = model
   end
+
+  Models.setmeta!(am, :train_args, args)
   am.model = gpu(am.model)
 
   model_dir = joinpath(args.savepath, Dates.format(Dates.now(), "yyyymmdd-HHMM"))
