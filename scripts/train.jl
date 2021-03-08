@@ -9,10 +9,21 @@ function flags()
     arg_type = String
     required = true
 
-    "--modelsavedir"
+    "--modeldir"
     arg_type = String
     required = true
+    help = """
+           Directory to save the model to. If the directory already exists and contains
+           epoch_XXX.bson files, trainer will load the latest epoch model and continue training from there.
+           If --loadmodel is provided, --modeldir must be a dir path, and either not exist or be empty.
+           """
 
+    "--loadmodel"
+    arg_type = String
+    default = nothing
+    help = "Path to a .bson model to load and continue training."
+
+    
     "--batch_size"
     arg_type = Int
     default = 16
@@ -21,9 +32,6 @@ function flags()
     arg_type = Int
     default = 10
 
-    "--previous_model"
-    arg_type = String
-    default = nothing
   end
   parse_args(ARGS, s)
 end
@@ -54,9 +62,9 @@ if abspath(PROGRAM_FILE) == @__FILE__
       #      savepath = expanduser("~/data/hair/models/selu_simple"),
       #avepath = expanduser("~/data/hair/models/tmp"),
 
-      savepath = expanduser(args["modelsavedir"]),
+      savepath = expanduser(args["modeldir"]),
       #savepath = expanduser("~/data/hair/models/leakyrelu_55_77_256/"),
-      previous_saved_model = args["previous_model"],
+      previous_saved_model = args["loadmodel"],
       batch_size = args["batch_size"],
       epochs = args["epochs"],
     ),

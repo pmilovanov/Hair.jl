@@ -184,7 +184,7 @@ function prf1(ŷ::AbstractArray{T,N}, y::AbstractArray{T,N}) where {T<:Abstract
   p = precision(ŷ, y)
   r = recall(ŷ, y)
   f1 = 2 * p * r / (p + r)
-  (p, r, f1)
+  (p, r, f1, 0.0)
 end
 
 precision(model, testset) = mean([precision(model(x), y) for (x, y) in testset])

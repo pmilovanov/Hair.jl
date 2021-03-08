@@ -119,26 +119,30 @@ end
 bce_loss(model) = (x, y) -> sum(Flux.Losses.binarycrossentropy(model(x), y))
 bce_loss_tuple(model) = xy -> bce_loss(model)(xy...)
 
+function loadmodel(path::String)
+    @info "Loading previous model"
+    Core.eval(Main, :(import NNlib))
+    Core.eval(Main, :(import Flux))
+    @load downloadmemaybe(path) model
+    model
+end
 
 function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing}; kwargs...)
   @info "Number of threads: $(Threads.nthreads())"
   #tracker = StatsTracker()
   tracker = nothing
 
-  @info "Setting up data"
-  trainset, testset, trainset_subsample = prepare_data(args, tracker)
-
   if args.previous_saved_model == nothing
     if am == nothing
       throw(ArgumentError("model must not be nothing if args.previous_saved_model is not set"))
     end
   else
-    @info "Loading previous model"
-    Core.eval(Main, :(import NNlib))
-    @load downloadmemaybe(args.previous_saved_model) model
-    am = model
+    am = loadmodel(args.previous_saved_model)
   end
 
+  @info "Setting up data"
+  trainset, testset, trainset_subsample = prepare_data(args, tracker)
+  
   Models.setmeta!(am, :train_args, args)
   am.model = gpu(am.model)
 
