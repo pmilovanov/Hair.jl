@@ -48,9 +48,10 @@ end
   lr::Float64 = 3e-3
   throttle::Int = 1
   epochs::Int = 100
+  startingepoch::Int = 1
   batch_size = 32
   image_size = 512
-  savepath::String = "./"
+  modeldir::String = "./"
   test_set_ratio = 0.2
   previous_saved_model = nothing
   only_save_model_if_better = true
@@ -127,6 +128,24 @@ function loadmodel(path::String)
     model
 end
 
+function maybeloadmodel(makemodelfn::Function, modeldir::String, modelfile::String="")::AnnotatedModel
+  """
+  Load the model from disk or make a new one using `makemodelfn`.
+  
+  `modeldir` is the directory in which to look for the model file (and where we intend to
+  save model checkpoints from the next epochs).
+
+  - If `modeldir` directory is empty or missing and `modelfile` is not specified, use function `makemodelfn`
+    to create a new model instance.
+
+  - If the `modeldir` directory is empty or absent, try loading the model file specified by `modelpathoverride` 
+    or if not provided, create new model using the provided function `makemodelfn`.
+
+  - If the dir contains files named epoch_XXX.bson, find the epoch with the greatest id and load that.
+    `modelfile` must be empty in that case or else this will throw an exception. 
+  """
+end
+
 function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing}; kwargs...)
   @info "Number of threads: $(Threads.nthreads())"
   #tracker = StatsTracker()
@@ -146,10 +165,10 @@ function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing}; kwargs
   Models.setmeta!(am, :train_args, args)
   am.model = gpu(am.model)
 
-  model_dir = joinpath(args.savepath, Dates.format(Dates.now(), "yyyymmdd-HHMM"))
+  model_dir = joinpath(args.modeldir, Dates.format(Dates.now(), "yyyymmdd-HHMM"))
   logdir=joinpath(model_dir, "tb")
-  if !isgcs(args.savepath)
-    isdir(args.savepath) || mkdir(args.savepath)
+  if !isgcs(args.modeldir)
+    isdir(args.modeldir) || mkdir(args.modeldir)
     isdir(model_dir) || mkdir(model_dir)
   else
     logdir = mktempdir()

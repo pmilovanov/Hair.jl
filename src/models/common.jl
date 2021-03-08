@@ -9,9 +9,10 @@ using BSON: @save
 
 abstract type ModelArgs end
 
-mutable struct AnnotatedModel
+@with_kw mutable struct AnnotatedModel
   model
   metadata::Dict
+  epoch::Int = 0
 end
 
 function AnnotatedModel(model, model_args::ModelArgs)

@@ -62,7 +62,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
       #      savepath = expanduser("~/data/hair/models/selu_simple"),
       #avepath = expanduser("~/data/hair/models/tmp"),
 
-      savepath = expanduser(args["modeldir"]),
+      modeldir = expanduser(args["modeldir"]),
       #savepath = expanduser("~/data/hair/models/leakyrelu_55_77_256/"),
       previous_saved_model = args["loadmodel"],
       batch_size = args["batch_size"],
