@@ -44,3 +44,15 @@ function downloadmemaybe(filename::String)
   gcscopy(filename, localfname)
   localfname
 end
+
+function gsls(path::String)
+  if !isgcs(pattern); return readdir(path, join=true); end
+  return open(`gsutil ls "$path"`, stdout; read=true) do io
+    lines = Vector{String}
+    while !eof(io)
+      push!(lines, readline(io))
+    end
+    lines
+  end
+end
+
