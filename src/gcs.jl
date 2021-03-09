@@ -45,14 +45,24 @@ function downloadmemaybe(filename::String)
   localfname
 end
 
-function gsls(path::String)
-  if !isgcs(pattern); return readdir(path, join=true); end
-  return open(`gsutil ls "$path"`, stdout; read=true) do io
-    lines = Vector{String}
-    while !eof(io)
-      push!(lines, readline(io))
+function readlines(cmd::Cmd, default=Vector{String}())
+  try
+    return open(cmd, stdout; read=true) do io
+      lines = Vector{String}()
+      while !eof(io); push!(lines, readline(io)); end
+      lines
     end
-    lines
+  catch
+    return default
   end
 end
+
+gsls(path::String) = isgcs(path) ? readlines(`gsutil ls $path`) : readdir(path, join=true)
+
+function gsisdir(path::String)
+  isgcs(path) || return isdir(path)
+  lines = readlines(`gsutil ls -d $path`)
+  return length(lines) == 1 && lines[1][end] == '/'
+end  
+
 
