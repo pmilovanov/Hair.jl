@@ -47,7 +47,7 @@ end
 
 function readlines(cmd::Cmd, default=Vector{String}())
   try
-    return open(cmd, stdout; read=true) do io
+    return @mock open(cmd, stdout; read=true) do io
       lines = Vector{String}()
       while !eof(io); push!(lines, readline(io)); end
       lines
@@ -65,4 +65,13 @@ function gsisdir(path::String)
   return length(lines) == 1 && lines[1][end] == '/'
 end  
 
+function gsisdirwfiles(path::String)
+  if isgcs(path)
+    lines = readlines(`gsutil ls $path`)
+    length(lines) == 0 && return false
+    length(lines) > 1 && return true
+    return lines[1] != path
+  end
 
+  return ispath(path) && isdir(path) && length(readdir(path)) > 0
+end
