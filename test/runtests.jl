@@ -2,10 +2,11 @@ using Test
 
 #@testset "All" begin
 include("test.jl")
-include("test_gendata.jl")
-include("test_file.jl")
-include("test_img.jl")
-include("test_train.jl")
-include("test_dataloaders.jl")
-include("test_nn.jl")
+include("gendata.jl")
+include("file.jl")
+include("img.jl")
+include("train.jl")
+include("dataloaders.jl")
+include("nn.jl")
+include("gcs.jl")
 #end

@@ -18,7 +18,7 @@ end
 function AnnotatedModel(model, model_args::ModelArgs)
   d = Dict()
   d[:model_args] = model_args
-  AnnotatedModel(model, d)
+  AnnotatedModel(model=model, metadata=d)
 end
 
 
