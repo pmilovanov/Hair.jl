@@ -135,6 +135,8 @@ function maybeloadmodel(makemodelfn::Function, modeldir::String, modelfile::Stri
   `modeldir` is the directory in which to look for the model file (and where we intend to
   save model checkpoints from the next epochs).
 
+  - If `modeldir` directory points to a file, barf and die.
+
   - If `modeldir` directory is empty or missing and `modelfile` is not specified, use function `makemodelfn`
     to create a new model instance.
 

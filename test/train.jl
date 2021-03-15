@@ -3,7 +3,7 @@ using Hair, Hair.TestUtil, Hair.Models
 using Images
 using Flux
 import Zygote
-using SimpleMock
+
 
 H = Hair
 
@@ -30,8 +30,7 @@ H = Hair
 end
 
 
-@testset "ML funcs" begin
-
+@testset "Stack channels" begin
   @test repr(H.Models.conv_block(3, (3, 3), 128 => 256, relu, pad = (1, 1), stride = (1, 1))) ==
         repr(
     Chain(
@@ -50,41 +49,20 @@ end
     Conv((3, 3), 3 => 12, relu, pad = SamePad()),
   )
   @test size(stack_layer(z)) == (256, 256, 22, 1)
-
-
-
 end
 
 
-@testset "ML funcs CUDA" begin
-  let x = rand(Float32, 128, 128, 3, 1), y = rand(Float32, 128, 128, 1, 1)
-    m = H.Models.simple(
-      H.Models.SimpleArgs(
-        blocksizes = [3, 3, 3, 3, 3],
-        kernelsizes = [(5, 5), (5, 5), (5, 5), (5, 5), (5, 5)],
-      ),
-    )
-    ŷ = m(x)
+@test "maybeloadmodel" begin
 
-    checkok(x) = (!all(x .== 0) && all(x .!= NaN))
+  test_makemodelfn() = Hair.AnnotatedModel("I am a dummy model", Hair.SimpleArgs())
+  
+  let tdir = mktempdir()
 
-    @test checkok(ŷ)
-
-    opt = ADAM(3e-3)
-    ps = Zygote.Params(params(m))
-    loss = H.bce_loss(m)
-    gs = gradient(ps) do
-      loss(x, y)
-    end
-
-    for p in ps
-      @test checkok(gs[p])
-    end
-
-    Flux.update!(opt, ps, gs)
-
-    for p in ps
-      @test checkok(p)
-    end
+    # tdir can't be a file
+    @test_throws Hair.maybeloadmodel(test_makemodelfn, tdir)
+    @test_throws Hair.maybeloadmodel(test_makemodelfn, tdir, "/tmp/1.bson")
   end
+
+  let     
 end
+

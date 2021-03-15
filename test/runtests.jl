@@ -9,4 +9,6 @@ include("train.jl")
 include("dataloaders.jl")
 include("nn.jl")
 include("gcs.jl")
+
+include("models/runtests.jl")
 #end
