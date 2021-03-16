@@ -30,39 +30,43 @@ H = Hair
 end
 
 
-@testset "Stack channels" begin
-  @test repr(H.Models.conv_block(3, (3, 3), 128 => 256, relu, pad = (1, 1), stride = (1, 1))) ==
-        repr(
-    Chain(
-      Conv((3, 3), 128 => 256, relu, pad = (1, 1), stride = (1, 1)),
-      BatchNorm(256),
-      Conv((3, 3), 256 => 256, relu, pad = (1, 1), stride = (1, 1)),
-      BatchNorm(256),
-      Conv((3, 3), 256 => 256, relu, pad = (1, 1), stride = (1, 1)),
-      BatchNorm(256),
-    ),
-  )
+@testset "maybeloadmodel" begin
 
-  z = rand(Float32, (256, 256, 3, 1))
-  stack_layer = H.StackChannels(
-    Conv((3, 3), 3 => 10, relu, pad = SamePad()),
-    Conv((3, 3), 3 => 12, relu, pad = SamePad()),
-  )
-  @test size(stack_layer(z)) == (256, 256, 22, 1)
-end
+  test_makemodelfn() = Hair.AnnotatedModel(model="I am a dummy model", model_args=Hair.SimpleArgs())
 
-
-@test "maybeloadmodel" begin
-
-  test_makemodelfn() = Hair.AnnotatedModel("I am a dummy model", Hair.SimpleArgs())
-  
+  # tdir can't be a file
   let tdir = mktempdir()
-
-    # tdir can't be a file
-    @test_throws Hair.maybeloadmodel(test_makemodelfn, tdir)
-    @test_throws Hair.maybeloadmodel(test_makemodelfn, tdir, "/tmp/1.bson")
+    fname = joinpath(tdir,"blah")
+    open(fname, "w") do io
+      write(io, "A file with something in it")
+    end
+    @test_throws ArgumentError Hair.maybeloadmodel(test_makemodelfn, tfname)
   end
 
-  let     
+  # tdir is empty
+  let tdir = mktempdir()
+    am = Hair.maybeloadmodel(test_makemodelfn, tdir)
+    @test am.model == "I am a dummy model"
+  end
+
+  # tdir is empty
+  let tdir = mktempdir()
+    modeldir = joinpath(tdir, "abracadabra")
+    am = Hair.maybeloadmodel(test_makemodelfn, tdir)
+    @test am.model == "I am a dummy model"
+    @test isdir(modeldir)
+    @test readdir(modeldir) |> length == 0
+  end
+
+  dummy_model(epochid::Int) = AnnotatedModel(model=Chain(MaxPool(2,2)), metadata=Dict(:model_args=>"Model epoch $(epochid)"), epoch=epochid)
+  # load the latest saved model, only one exists
+  let tdir = mktempdir()
+    Hair.savemodel(dummy_model(1), tdir)
+    @test Hair.maybeloadmodel(test_makemodelfn, tdir).metadata[:model_args] == "Model epoch 1"
+        
+    Hair.savemodel(dummy_model(2), tdir)
+    Hair.savemodel(dummy_model(3), tdir)
+    @test Hair.maybeloadmodel(test_makemodelfn, tdir).metadata[:model_args] == "Model epoch 3"
+  end  
 end
 

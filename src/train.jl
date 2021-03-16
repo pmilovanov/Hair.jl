@@ -128,25 +128,25 @@ function loadmodel(path::String)
     model
 end
 
-function maybeloadmodel(makemodelfn::Function, modeldir::String, modelfile::String="")::AnnotatedModel
+function maybeloadmodel(makemodelfn::Function, modeldir::String)
   """
-  Load the model from disk or make a new one using `makemodelfn`.
+  Load the last model checkpoint from disk or make a new one using `makemodelfn`.
   
   `modeldir` is the directory in which to look for the model file (and where we intend to
   save model checkpoints from the next epochs).
 
   - If `modeldir` directory points to a file, barf and die.
 
-  - If `modeldir` directory is empty or missing and `modelfile` is not specified, use function `makemodelfn`
+  - If `modeldir` directory is empty or missing, use function `makemodelfn`
     to create a new model instance.
 
-  - If the `modeldir` directory is empty or absent, try loading the model file specified by `modelpathoverride` 
-    or if not provided, create new model using the provided function `makemodelfn`.
+  - If the `modeldir` directory is empty or absent, create the directory if needed and return
+    a model newly created using `makemodelfn`.
 
-  - If the dir contains files named epoch_XXX.bson, find the epoch with the greatest id and load that.
-    `modelfile` must be empty in that case or else this will throw an exception. 
+  - If the dir `modeldir` contains files named epoch_<ID>.bson, find the epoch with the greatest id and load that.
   """
 
+  return AnnotatedModel("", Hair.BasicModelArgs(""))
   
 end
 
@@ -188,7 +188,8 @@ function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing}; kwargs
 
   first_iteration = true
   
-  for i = 1:args.epochs
+  for i = (am.epoch+1):args.epochs
+    am.epoch = i
     p = Progress(length(trainset), dt = 1.0, desc = "Epoch $i: ")
 
     lasttime = Ref(time_ns())
@@ -216,7 +217,7 @@ function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing}; kwargs
     @info @sprintf("PRF1L TRAIN: %0.4f %0.4f %0.4f %0.4f", trp, trr, trf1, tlossval)
 
     if args.only_save_model_if_better == false || f1 > f1_old
-      Models.savemodel(am, model_dir, i)
+      Models.savemodel(am, model_dir)
     end
     if isgcs(model_dir)
       if length(readdir(logdir)) > 0

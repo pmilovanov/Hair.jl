@@ -1,6 +1,6 @@
 module Models
 
-export AnnotatedModel, model, metadata, setmeta!, savemeta!
+export AnnotatedModel, ModelArgs, BasicModelArgs, model, metadata, setmeta!, savemeta
 
 include("common.jl")
 include("simple.jl")

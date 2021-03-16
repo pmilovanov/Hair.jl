@@ -9,13 +9,17 @@ using BSON: @save
 
 abstract type ModelArgs end
 
+struct BasicModelArgs{T} <: ModelArgs
+  args::T
+end
+
 @with_kw mutable struct AnnotatedModel
   model
   metadata::Dict
   epoch::Int = 0
 end
 
-function AnnotatedModel(model, model_args::ModelArgs)
+function AnnotatedModel(model, model_args::ModelArgs)  
   d = Dict()
   d[:model_args] = model_args
   AnnotatedModel(model=model, metadata=d)
@@ -37,13 +41,13 @@ function savemeta(am::AnnotatedModel, filename::String)
   end
 end
 
-function savemodel(am::AnnotatedModel, dir::String, epoch_id::Int)
+function savemodel(am::AnnotatedModel, dir::String)
   localdir = isgcs(dir) ? mktempdir() : dir
   
-  modelfilename = joinpath(localdir, @sprintf("epoch_%03d.bson", epoch_id))
-  metafilename = joinpath(localdir, @sprintf("epoch_%03d.json", epoch_id))
+  modelfilename = joinpath(localdir, @sprintf("epoch_%03d.bson", am.epoch))
+  metafilename = joinpath(localdir, @sprintf("epoch_%03d.json", am.epoch))
 
-  model = AnnotatedModel(cpu(am.model), am.metadata)
+  model = AnnotatedModel(model=cpu(am.model), metadata=am.metadata)
 
   @save modelfilename model
   Models.savemeta(am, metafilename)

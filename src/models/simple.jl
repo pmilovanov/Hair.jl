@@ -33,7 +33,7 @@ function build_model_simple(blocksizes::Vector{Int})
     #    DebugPrintSize("stacked1u2"),
   )
 
-  return AnnotatedModel(stacked1u2, blocksizes)
+  return AnnotatedModel(stacked1u2, BasicModelArgs(blocksizes))
 
 end
 
