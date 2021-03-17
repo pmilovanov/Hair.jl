@@ -8,59 +8,68 @@ Mocking.activate()
 
 @testset "Save model" begin
 
-  let tdir = mktempdir()
+  function dummy()
     m = H.Models.simple()
+    m.epoch=8
     m.model = gpu(m.model)
+    m
+  end
 
-    H.Models.savemodel(m, tdir, 8)
+  # save model, happy path -- local
+  let tdir = mktempdir()
+    m = dummy()
+    H.Models.savemodel(m, tdir)
     @test isfile(joinpath(tdir, "epoch_008.bson"))
     @test isfile(joinpath(tdir, "epoch_008.json"))
   end
 
+  # file to save to already exists -- local
   let tdir = mktempdir()
-    m = H.Models.simple()
-    m.model = gpu(m.model)
+    m = dummy()
+    open(joinpath(tdir, "epoch_008.bson")) do io
+      write("boo")
+    end    
+    @test_throws InvalidStateException H.Models.savemodel(m, tdir)
+  end
 
+  # save model, happy path -- gcs
+  let tdir = mktempdir()
+    m = dummy()
     cmds = []
-    p = @patch function run(cmd::Cmd)
-      push!(cmds, cmd)
-      run(`echo`)
+    p_run = @patch run(cmd::Cmd) = push!(cmds, cmd)
+    p_open = @patch function open(f::Function, c::Base.AbstractCmd, args...; kwargs...)
+      push!(cmds, c)
+      io = IOBuffer()
+      f(io)
     end
 
-    apply(p) do
-      H.Models.savemodel(m, "gs://hairy/test", 5)
+    apply([p_open, p_run]) do
+      H.Models.savemodel(m, "gs://hairy/test")
 
-      @test cmds[1].exec[1:3] == ["gsutil", "-m", "cp"]
-      @test endswith(cmds[1].exec[4], "epoch_005.bson")
-      @test cmds[1].exec[5] == "gs://hairy/test/"
-
+      @test cmds[1] == `gsutil ls gs://hairy/test/epoch_005.bson`
+      
       @test cmds[2].exec[1:3] == ["gsutil", "-m", "cp"]
-      @test endswith(cmds[2].exec[4], "epoch_005.json")
+      @test endswith(cmds[2].exec[4], "epoch_005.bson")
       @test cmds[2].exec[5] == "gs://hairy/test/"
+
+      @test cmds[3].exec[1:3] == ["gsutil", "-m", "cp"]
+      @test endswith(cmds[3].exec[4], "epoch_005.json")
+      @test cmds[3].exec[5] == "gs://hairy/test/"
+    end
+  end
+
+  # file to save to already exists -- gcs
+  let tdir = mktempdir()
+    m = dummy()
+    cmds = []
+    p_open = @patch function open(f::Function, c::Base.AbstractCmd, args...; kwargs...)
+      push!(cmds, c)
+      io = IOBuffer("gs://hairy/test/epoch_005.bson\n")
+      f(io)
+    end
+    apply(p_open) do
+      @test_throws InvalidStateException H.Models.savemodel(m, "gs://hairy/test")
     end
   end
 
 end
-
-
-@testset "Stack channels" begin
-  @test repr(H.Models.conv_block(3, (3, 3), 128 => 256, relu, pad = (1, 1), stride = (1, 1))) ==
-        repr(
-    Chain(
-      Conv((3, 3), 128 => 256, relu, pad = (1, 1), stride = (1, 1)),
-      BatchNorm(256),
-      Conv((3, 3), 256 => 256, relu, pad = (1, 1), stride = (1, 1)),
-      BatchNorm(256),
-      Conv((3, 3), 256 => 256, relu, pad = (1, 1), stride = (1, 1)),
-      BatchNorm(256),
-    ),
-  )
-
-  z = rand(Float32, (256, 256, 3, 1))
-  stack_layer = H.StackChannels(
-    Conv((3, 3), 3 => 10, relu, pad = SamePad()),
-    Conv((3, 3), 3 => 12, relu, pad = SamePad()),
-  )
-  @test size(stack_layer(z)) == (256, 256, 22, 1)
-end
-

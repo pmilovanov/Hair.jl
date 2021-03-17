@@ -9,6 +9,8 @@ using BSON
 H = Hair
 M = Hair.Models
 
+
+
 @testset "A couple of epochs trained on a basic model" begin
 
   tdir = H.TestUtil.write_dummy_images_masks2(32, 128)

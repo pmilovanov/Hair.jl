@@ -117,3 +117,8 @@ function gsmkpath(path::String)
     mkpath(path)
   end
 end
+
+function gsispath(path::String)::Bool
+  gspathtype(path) != PATH_NONEXISTENT  
+end
+  

@@ -1,7 +1,7 @@
 using Flux, CUDA
 using Flux: throttle, logitbinarycrossentropy
 
-import ..Upsample, ..SkipUnit, ..gcscopy, ..isgcs
+import ..Upsample, ..SkipUnit, ..gcscopy, ..isgcs, ..gsispath
 using Parameters: @with_kw
 import JSON2
 using Printf
@@ -45,23 +45,25 @@ end
 
 function savemodel(am::AnnotatedModel, dir::String)
     localdir = isgcs(dir) ? mktempdir() : dir
+
+    modelbasename = @sprintf("epoch_%03d.bson", am.epoch)
+    localmodelfname = joinpath(localdir, modelbasename)
+    actualmodelfname = joinpath(dir, modelbasename)
+    gsispath(actualmodelfname) && throw(InvalidStateException("File $localmodelfname already exists", :FILE_ALREADY_EXISTS))
   
-    modelfilename = joinpath(localdir, @sprintf("epoch_%03d.bson", am.epoch))
-    ispath(modelfilename) && throw(InvalidStateException("File $modelfilename already exists", :FILE_ALREADY_EXISTS))
-  
-    metafilename = joinpath(localdir, @sprintf("epoch_%03d.json", am.epoch))
+    localmetafname = joinpath(localdir, @sprintf("epoch_%03d.json", am.epoch))
 
     model = AnnotatedModel(model=cpu(am.model), metadata=am.metadata)
 
-    @save modelfilename model
-    Models.savemeta(am, metafilename)
+    @save localmodelfname model
+    Models.savemeta(am, localmetafname)
   
-    @info "Saved model locally to $modelfilename"
+    @info "Saved model locally to $localmodelfname"
 
     if isgcs(dir)
-        gcscopy(modelfilename, joinpath(dir, ""))
-        gcscopy(metafilename, joinpath(dir, ""))
-        @info "Saved model on gcs to $(joinpath(dir, basename(modelfilename)))"
+        gcscopy(localmodelfname, joinpath(dir, ""))
+        gcscopy(localmetafname, joinpath(dir, ""))
+        @info "Saved model on gcs to $(joinpath(dir, basename(localmodelfname)))"
     end
 end
   
