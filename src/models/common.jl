@@ -49,11 +49,10 @@ function savemodel(am::AnnotatedModel, dir::String)
     modelbasename = @sprintf("epoch_%03d.bson", am.epoch)
     localmodelfname = joinpath(localdir, modelbasename)
     actualmodelfname = joinpath(dir, modelbasename)
+    localmetafname = joinpath(localdir, @sprintf("epoch_%03d.json", am.epoch))
     gsispath(actualmodelfname) && throw(InvalidStateException("File $localmodelfname already exists", :FILE_ALREADY_EXISTS))
   
-    localmetafname = joinpath(localdir, @sprintf("epoch_%03d.json", am.epoch))
-
-    model = AnnotatedModel(model=cpu(am.model), metadata=am.metadata)
+    model = AnnotatedModel(model=cpu(am.model), metadata=am.metadata, epoch=am.epoch)
 
     @save localmodelfname model
     Models.savemeta(am, localmetafname)
