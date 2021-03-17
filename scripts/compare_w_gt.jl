@@ -18,14 +18,10 @@ gtdir = "/home/pmilovanov/data/hair/private/realgt"
 
 
 
-fname="derain-port"
+fname = "derain-port"
 #fname="gauguin-3women"
 
-rr = H.infer_compare_w_gt(
-  gmodel,
-  "$(gtdir)/$(fname).jpg",
-  "$(gtdir)/$(fname)-mask.jpg"
-)
+rr = H.infer_compare_w_gt(gmodel, "$(gtdir)/$(fname).jpg", "$(gtdir)/$(fname)-mask.jpg")
 
 save("~/tmp/hairout.jpg", rr.overlaid)
 

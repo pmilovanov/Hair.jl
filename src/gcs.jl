@@ -43,17 +43,21 @@ function untar(src::GCSPath, destdir::String)
 end
 
 function downloadmemaybe(filename::String)
-  if !isgcs(filename); return filename; end
+  if !isgcs(filename)
+    return filename
+  end
   localfname = joinpath(mktempdir(), "model.bson")
   gcscopy(filename, localfname)
   localfname
 end
 
-function readlines(cmd::Cmd, default=Vector{String}())
+function readlines(cmd::Cmd, default = Vector{String}())
   try
-    return @mock open(cmd, stdout; read=true) do io
+    return @mock open(cmd, stdout; read = true) do io
       lines = Vector{String}()
-      while !eof(io); push!(lines, readline(io)); end
+      while !eof(io)
+        push!(lines, readline(io))
+      end
       lines
     end
   catch
@@ -61,13 +65,13 @@ function readlines(cmd::Cmd, default=Vector{String}())
   end
 end
 
-gsls(path::String) = isgcs(path) ? readlines(`gsutil ls $path`) : readdir(path, join=true)
+gsls(path::String) = isgcs(path) ? readlines(`gsutil ls $path`) : readdir(path, join = true)
 
 function gsisdir(path::String)
   isgcs(path) || return isdir(path)
   lines = readlines(`gsutil ls -d $path`)
   return length(lines) == 1 && lines[1][end] == '/'
-end  
+end
 
 function gsisdirwfiles(path::String)
   if isgcs(path)

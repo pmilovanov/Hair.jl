@@ -17,7 +17,7 @@ function flags()
            epoch_XXX.bson files, trainer will load the latest epoch model and continue training from there.
            """
 
-    
+
     "--batch_size"
     arg_type = Int
     default = 16
