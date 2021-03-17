@@ -5,7 +5,7 @@ using Base.Iterators: partition
 using Flux, CUDA
 using Flux.Data: DataLoader
 using Flux: throttle, logitbinarycrossentropy
-using Logging
+using Logging, LoggingExtras
 using MLDataPattern: splitobs, shuffleobs
 using NNlib
 using Parameters: @with_kw
@@ -14,6 +14,7 @@ using ProgressMeter
 using Statistics
 using StatsBase
 using TensorBoardLogger
+
 
 using .Models
 
@@ -48,12 +49,10 @@ end
   lr::Float64 = 3e-3
   throttle::Int = 1
   epochs::Int = 100
-  startingepoch::Int = 1
   batch_size = 32
   image_size = 512
   modeldir::String = "./"
   test_set_ratio = 0.2
-  previous_saved_model = nothing
   only_save_model_if_better = true
 end
 
@@ -155,27 +154,19 @@ function maybeloadmodel(makemodelfn::Function, modeldir::String; prefix="epoch_"
     return makemodelfn()
   end
 
-  checkpoints = [x for x in readlines(modeldir) if startswith(x, prefix) && endswith(x, ext)]
+  checkpoints = [x for x in readdir(modeldir) if startswith(x, prefix) && endswith(x, ext)]
   ids = [parse(Int, x[1+length(prefix): length(x)-length(ext)]) for x in checkpoints]
 
-  fname = checkpoints[findmax(ids)[1]]
+  fname = checkpoints[findmax(ids)[2]]
   fname = joinpath(modeldir, fname)
   
   loadmodel(fname)  
 end
 
-function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing}; kwargs...)
+function train(args::TrainArgs, am::Models.AnnotatedModel; kwargs...)
   @info "Number of threads: $(Threads.nthreads())"
   #tracker = StatsTracker()
   tracker = nothing
-
-  if args.previous_saved_model == nothing
-    if am == nothing
-      throw(ArgumentError("model must not be nothing if args.previous_saved_model is not set"))
-    end
-  else
-    am = loadmodel(args.previous_saved_model)
-  end
 
   @info "Setting up data"
   trainset, testset, trainset_subsample = prepare_data(args, tracker)
@@ -183,22 +174,19 @@ function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing}; kwargs
   Models.setmeta!(am, :train_args, args)
   am.model = gpu(am.model)
 
-  model_dir = joinpath(args.modeldir, Dates.format(Dates.now(), "yyyymmdd-HHMM"))
-  logdir=joinpath(model_dir, "tb")
-  if !isgcs(args.modeldir)
-    isdir(args.modeldir) || mkdir(args.modeldir)
-    isdir(model_dir) || mkdir(model_dir)
-  else
+  #  model_dir = joinpath(args.modeldir, Dates.format(Dates.now(), "yyyymmdd-HHMM"))
+
+  logdir=joinpath(args.modeldir, "tb")
+  if isgcs(args.modeldir)
     logdir = mktempdir()
   end
   
-  logger = TBLogger(logdir, tb_overwrite)
+  logger = TeeLogger(current_logger(),
+                     TBLogger(logdir, tb_append))
 
   opt = ADAM(args.lr)
   @info("Starting training...")
-  # Starting to train models
   f1_old = 0
-
 
   first_iteration = true
   
@@ -221,39 +209,29 @@ function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing}; kwargs
     end
     
     Flux.train!(bce_loss(am.model), params(am.model), trainset, opt, cb = iteration_callback)
-
-    p, r, f1, lossval = prf1(am.model, testset, lossfn=Flux.Losses.binarycrossentropy)
-    Models.setmeta!(am, :metrics, Dict(:p => p, :r => r, :f1 => f1, :loss => lossval))
-    @info @sprintf(" PRF1L TEST: %0.4f %0.4f %0.4f %0.4f", p, r, f1, lossval)
     
-    trainset = reset(trainset)
-    trp, trr, trf1, tlossval = prf1(am.model, trainset_subsample, lossfn=Flux.Losses.binarycrossentropy)
-    @info @sprintf("PRF1L TRAIN: %0.4f %0.4f %0.4f %0.4f", trp, trr, trf1, tlossval)
+    with_logger(logger) do
+      p, r, f1, lossval = prf1(am.model, trainset_subsample, lossfn=Flux.Losses.binarycrossentropy)
+      @info "train" precision=p recall=r f1=f1 loss=lossval
+      p, r, f1, lossval = prf1(am.model, testset, lossfn=Flux.Losses.binarycrossentropy)
+      @info "test" precision=p recall=r f1=f1 loss=lossval
 
-    if args.only_save_model_if_better == false || f1 > f1_old
-      Models.savemodel(am, model_dir)
+      if f1 > f1_old || !args.only_save_model_if_better
+        Models.savemodel(am, args.modeldir)
+      end
+      f1_old = max(f1, f1_old)
     end
-    if isgcs(model_dir)
+
+    if isgcs(args.modeldir)
       if length(readdir(logdir)) > 0
-        gcscopy("$(logdir)/*", "$(model_dir)/tb/")
+        gcscopy("$(logdir)/*", "$(args.modeldir)/tb/")
       else
         @warn "Nothing found in tensorboard dir $(logdir)"
       end
     end
-    
-    with_logger(logger) do      
-      @info "test" precision=p recall=r f1=f1 loss=lossval
-      @info "train" precision=trp recall=trr f1=trf1 loss=tlossval
-    end
-
-    # stats = snapshot(tracker)
-    # for k in sort(collect(keys(stats)))
-    #   println("----------- $k -------------")
-    #   show(stats[k])
-    # end
 
     trainset, testset, trainset_subsample = reset(trainset), reset(testset), reset(trainset_subsample)
   end
 
-  return model_dir
+  return args.modeldir
 end

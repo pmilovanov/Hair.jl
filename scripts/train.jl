@@ -15,13 +15,7 @@ function flags()
     help = """
            Directory to save the model to. If the directory already exists and contains
            epoch_XXX.bson files, trainer will load the latest epoch model and continue training from there.
-           If --loadmodel is provided, --modeldir must be a dir path, and either not exist or be empty.
            """
-
-    "--loadmodel"
-    arg_type = String
-    default = nothing
-    help = "Path to a .bson model to load and continue training."
 
     
     "--batch_size"
@@ -38,16 +32,17 @@ end
 
 
 if abspath(PROGRAM_FILE) == @__FILE__
-
   args = flags()
 
-  model = Hair.Models.simple(
+  makemodelfn() = Hair.Models.simple(
     Hair.Models.SimpleArgs(
       blocksizes = [5, 5, 5, 5, 5],
       kernelsizes = [(5, 5), (5, 5), (5, 5), (5, 5), (5, 5)],
       σ = leakyrelu,
     ),
   )
+
+  model = Hair.maybeloadmodel(makemodelfn, args["modeldir"])
 
   Hair.train(
     Hair.TrainArgs(
@@ -64,7 +59,6 @@ if abspath(PROGRAM_FILE) == @__FILE__
 
       modeldir = expanduser(args["modeldir"]),
       #savepath = expanduser("~/data/hair/models/leakyrelu_55_77_256/"),
-      previous_saved_model = args["loadmodel"],
       batch_size = args["batch_size"],
       epochs = args["epochs"],
     ),

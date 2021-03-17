@@ -18,8 +18,9 @@ M = Hair.Models
   savepath = mktempdir(cleanup = false)
 
   #model = H.Models.build_model_simple([2, 2, 2, 2])
-  model = M.simple(M.SimpleArgs())
-
+  modelfn() = M.simple(M.SimpleArgs())
+  model = H.maybeloadmodel(modelfn, savepath)
+  
   #  Profile.init(n=20000000)
 
   model_dir = H.train(
@@ -27,12 +28,12 @@ M = Hair.Models
       img_dir = tdir,
       test_set_ratio = 0.5,
       epochs = 2,
-      savepath = savepath,
+      modeldir = savepath,
       only_save_model_if_better = false,
     ),
     model,
   )
-
+  
   @info "Model dir: $(model_dir)"
 
   for p in ["epoch_001.bson", "epoch_002.bson"]
@@ -50,7 +51,4 @@ M = Hair.Models
     @test size(ŷ) == (256, 256, 1, 4)
     break
   end
-
-
-  #  Profile.print()
 end

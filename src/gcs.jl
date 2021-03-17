@@ -81,7 +81,13 @@ function gsisdirwfiles(path::String)
 end
 
 
-@enum PathType PATH_NONEXISTENT, PATH_FILE, PATH_DIR_EMPTY, PATH_DIR_NONEMPTY, PATH_OTHER
+@enum PathType begin
+  PATH_NONEXISTENT
+  PATH_FILE
+  PATH_DIR_EMPTY
+  PATH_DIR_NONEMPTY
+  PATH_OTHER
+end
 
 function localpathtype(path::String)::PathType
   !ispath(path) && return PATH_NONEXISTENT

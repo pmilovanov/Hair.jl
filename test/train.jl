@@ -32,7 +32,7 @@ end
 
 @testset "maybeloadmodel" begin
 
-  test_makemodelfn() = Hair.AnnotatedModel(model="I am a dummy model", model_args=Hair.SimpleArgs())
+  test_makemodelfn() = Hair.AnnotatedModel("I am a dummy model", Hair.Models.SimpleArgs())
 
   # tdir can't be a file
   let tdir = mktempdir()
@@ -40,7 +40,7 @@ end
     open(fname, "w") do io
       write(io, "A file with something in it")
     end
-    @test_throws ArgumentError Hair.maybeloadmodel(test_makemodelfn, tfname)
+    @test_throws ArgumentError Hair.maybeloadmodel(test_makemodelfn, fname)
   end
 
   # tdir is empty
@@ -52,21 +52,23 @@ end
   # tdir is empty
   let tdir = mktempdir()
     modeldir = joinpath(tdir, "abracadabra")
-    am = Hair.maybeloadmodel(test_makemodelfn, tdir)
+    am = Hair.maybeloadmodel(test_makemodelfn, modeldir)
     @test am.model == "I am a dummy model"
     @test isdir(modeldir)
     @test readdir(modeldir) |> length == 0
   end
 
-  dummy_model(epochid::Int) = AnnotatedModel(model=Chain(MaxPool(2,2)), metadata=Dict(:model_args=>"Model epoch $(epochid)"), epoch=epochid)
+  dummy_model(epochid::Int) = AnnotatedModel(model=Chain(MaxPool((2,2))), metadata=Dict(:model_args=>"Model epoch $(epochid)"), epoch=epochid)
   # load the latest saved model, only one exists
   let tdir = mktempdir()
-    Hair.savemodel(dummy_model(1), tdir)
+    Hair.Models.savemodel(dummy_model(1), tdir)
     @test Hair.maybeloadmodel(test_makemodelfn, tdir).metadata[:model_args] == "Model epoch 1"
-        
-    Hair.savemodel(dummy_model(2), tdir)
-    Hair.savemodel(dummy_model(3), tdir)
+    Hair.Models.savemodel(dummy_model(2), tdir)
+    Hair.Models.savemodel(dummy_model(3), tdir)
     @test Hair.maybeloadmodel(test_makemodelfn, tdir).metadata[:model_args] == "Model epoch 3"
+    Hair.Models.savemodel(dummy_model(9999), tdir)
+    Hair.Models.savemodel(dummy_model(1009990), tdir)
+    @test Hair.maybeloadmodel(test_makemodelfn, tdir).metadata[:model_args] == "Model epoch 1009990"
   end  
 end
 
