@@ -11,7 +11,7 @@ M = Hair.Models
 
 @testset "A couple of epochs trained on a basic model" begin
 
-  tdir = H.TestUtil.write_dummy_images_masks2(500, 256)
+  tdir = H.TestUtil.write_dummy_images_masks2(32, 128)
 
   @info "Images dir: $(tdir)"
 
@@ -30,6 +30,7 @@ M = Hair.Models
       epochs = 2,
       modeldir = savepath,
       only_save_model_if_better = false,
+      batch_size = 8
     ),
     model,
   )
@@ -48,7 +49,7 @@ M = Hair.Models
   dataset = H.SegmentationDataLoader(H.readdir_nomasks(tdir), batchsize = 4) |> H.GPUDataLoader
   for (x, y) in dataset
     ŷ = model(gpu(x))
-    @test size(ŷ) == (256, 256, 1, 4)
+    @test size(ŷ) == (128, 128, 1, 4)
     break
   end
 end
