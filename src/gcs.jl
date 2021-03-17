@@ -3,6 +3,10 @@ using Mocking
 
 const GCS_PREFIX = "gs://"
 
+struct GCSError <: Exception
+  message::String
+end
+
 isgcs(path::String) = startswith(path, GCS_PREFIX)
 
 struct GCSPath
@@ -74,4 +78,32 @@ function gsisdirwfiles(path::String)
   end
 
   return ispath(path) && isdir(path) && length(readdir(path)) > 0
+end
+
+
+@enum PathType PATH_NONEXISTENT, PATH_FILE, PATH_DIR_EMPTY, PATH_DIR_NONEMPTY, PATH_OTHER
+
+function localpathtype(path::String)::PathType
+  !ispath(path) && return PATH_NONEXISTENT
+  isfile(path) && return PATH_FILE
+  isdir(path) && return length(readdir(path)) > 0 ? PATH_DIR_NONEMPTY : PATH_DIR_EMPTY
+  PATH_OTHER
+end
+
+function gsonlypathtype(path::String)::PathType
+  lines = readlines(`gsutil ls $path`)
+  length(lines) == 0 && return PATH_NONEXISTENT
+  length(lines) > 1 && return PATH_DIR_NONEMPTY
+  lines[1] == path && return PATH_FILE
+  throw(GCSError("Can't have empty dirs in gcs but found '$(lines[1])' for query '$(path)'"))
+end
+
+function gspathtype(path::String)::PathType
+  return isgcs(path) ? gsonlypathtype(path) : localpathtype(path)
+end
+
+function gsmkpath(path::String)
+  if !isgcs(path)
+    mkpath(path)
+  end
 end

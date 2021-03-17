@@ -128,7 +128,7 @@ function loadmodel(path::String)
     model
 end
 
-function maybeloadmodel(makemodelfn::Function, modeldir::String)
+function maybeloadmodel(makemodelfn::Function, modeldir::String; prefix="epoch_", ext=".bson")
   """
   Load the last model checkpoint from disk or make a new one using `makemodelfn`.
   
@@ -146,8 +146,22 @@ function maybeloadmodel(makemodelfn::Function, modeldir::String)
   - If the dir `modeldir` contains files named epoch_<ID>.bson, find the epoch with the greatest id and load that.
   """
 
-  return AnnotatedModel("", Hair.BasicModelArgs(""))
+  pathtype = gspathtype(modeldir)
+
+  if pathtype in [PATH_FILE, PATH_OTHER]
+    throw(ArgumentError("Model dir specified is not a directory: $modeldir"))
+  elseif pathtype in [PATH_NONEXISTENT, PATH_DIR_EMPTY]
+    pathtype == PATH_NONEXISTENT && gsmkpath(modeldir)
+    return makemodelfn()
+  end
+
+  checkpoints = [x for x in readlines(modeldir) if startswith(x, prefix) && endswith(x, ext)]
+  ids = [parse(Int, x[1+length(prefix): length(x)-length(ext)]) for x in checkpoints]
+
+  fname = checkpoints[findmax(ids)[1]]
+  fname = joinpath(modeldir, fname)
   
+  loadmodel(fname)  
 end
 
 function train(args::TrainArgs, am::Union{Models.AnnotatedModel,Nothing}; kwargs...)
