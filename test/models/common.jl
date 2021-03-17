@@ -10,7 +10,7 @@ Mocking.activate()
 
   function dummy()
     m = H.Models.simple()
-    m.epoch=8
+    m.epoch=5
     m.model = gpu(m.model)
     m
   end
@@ -19,15 +19,15 @@ Mocking.activate()
   let tdir = mktempdir()
     m = dummy()
     H.Models.savemodel(m, tdir)
-    @test isfile(joinpath(tdir, "epoch_008.bson"))
-    @test isfile(joinpath(tdir, "epoch_008.json"))
+    @test isfile(joinpath(tdir, "epoch_005.bson"))
+    @test isfile(joinpath(tdir, "epoch_005.json"))
   end
 
   # file to save to already exists -- local
   let tdir = mktempdir()
     m = dummy()
-    open(joinpath(tdir, "epoch_008.bson")) do io
-      write("boo")
+    open(joinpath(tdir, "epoch_005.bson"), "w") do io
+      write(io, "boo")
     end    
     @test_throws InvalidStateException H.Models.savemodel(m, tdir)
   end
