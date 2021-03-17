@@ -63,8 +63,6 @@ end
     break
   end
 
-  
-
   # Try training when modeldir points to a dir with existing checkpoints
   model2 = H.maybeloadmodel(modelfn, savepath)
   @test model2.epoch == 2
